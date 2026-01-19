@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>US Economy 2026 Forecast Bot</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>US Economy Forecast (2026)</h1>
+      <p class="sub">Live macro data </p>
+    </header>
+
+    <section class="card">
+      <label class="label">Ask</label>
+      <textarea id="q" rows="3">Give me a forecast for the US economy in 2026.</textarea>
+
+      <div class="row">
+        <button id="askBtn">Generate forecast</button>
+        <span id="status" class="status"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <label class="label">Answer</label>
+      <pre id="answer" class="answer">(Your forecast will appear here)</pre>
+    </section>
+
+    <footer>
+      <small>Developed by: Judercio Nhauche</small>
+    </footer>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
