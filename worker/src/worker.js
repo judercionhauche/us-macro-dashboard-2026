@@ -5,107 +5,158 @@ export default {
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
+
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     try {
       if (request.method !== "POST") return json({ error: "Use POST" }, 405, cors);
 
-      const { question } = await request.json();
-      const q = (question || "").toString().trim();
-      if (!q) return json({ error: "Missing question" }, 400, cors);
+      const body = await request.json();
+      const question = (body.question || "").toString().trim();
+      const horizonMonths = Number(body.horizonMonths || 24);
+      const windowMonths = Number(body.windowMonths || 36);
 
-      // ---- Fetch live FRED series ----
-      const series = ["GDPC1", "CPIAUCSL", "UNRATE", "FEDFUNDS"];
-      const fred = {};
-      for (const s of series) fred[s] = await fredSeries(env.FRED_API_KEY, s);
+      if (!question) return json({ error: "Missing question" }, 400, cors);
 
-      const dataLastUpdated = latestDateAcross(fred);
-      const baseline = buildBaseline2026(fred);
-
-      // ---- OpenAI Responses API call ----
-      const schema = {
-        name: "us_econ_2026_forecast",
-        schema: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            headline: { type: "string" },
-            numbers: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                real_gdp_growth_2026: { type: "string" },
-                cpi_inflation_2026: { type: "string" },
-                unemployment_2026: { type: "string" },
-                fed_funds_end_2026: { type: "string" }
-              },
-              required: ["real_gdp_growth_2026","cpi_inflation_2026","unemployment_2026","fed_funds_end_2026"]
-            },
-            reasoning: { type: "string" },
-            risks: { type: "array", items: { type: "string" } },
-            what_to_watch: { type: "array", items: { type: "string" } },
-            data_notes: { type: "string" }
-          },
-          required: ["headline","numbers","reasoning","risks","what_to_watch","data_notes"]
-        }
+      // 1) Fetch FRED monthly series
+      const seriesIds = {
+        CPI: "CPIAUCSL",
+        UNRATE: "UNRATE",
+        FEDFUNDS: "FEDFUNDS",
+        INDPRO: "INDPRO",
       };
 
-      const input = [
+      const fred = {};
+      for (const key of Object.keys(seriesIds)) {
+        fred[key] = await fredSeries(env.FRED_API_KEY, seriesIds[key]);
+      }
+
+      const dataLastUpdated = latestDateAcross(fred);
+
+      // 2) CPI -> YoY inflation %
+      const cpiYoY = computeYoYPercent(fred.CPI);
+
+      // 3) Window
+      const unrateWin = lastN(fred.UNRATE, windowMonths);
+      const fedWin = lastN(fred.FEDFUNDS, windowMonths);
+      const indproWin = lastN(fred.INDPRO, windowMonths);
+      const cpiYoYWin = lastN(cpiYoY, windowMonths);
+
+      // 4) Forecasts + bands
+      const fc_unrate = holtForecastWithBands(unrateWin.map(x => x.value), horizonMonths);
+      const fc_fed    = holtForecastWithBands(fedWin.map(x => x.value), horizonMonths);
+      const fc_indpro = holtForecastWithBands(indproWin.map(x => x.value), horizonMonths);
+      const fc_cpi    = holtForecastWithBands(cpiYoYWin.map(x => x.value), horizonMonths);
+
+      // 5) Future date labels (monthly)
+      const lastDate = unrateWin.at(-1)?.date || dataLastUpdated;
+      const futureDates = buildFutureMonthlyDates(lastDate, horizonMonths);
+
+      // 6) Chart payload (history + forecast + bands)
+      const charts = {
+        cpi_yoy: {
+          title: "CPI Inflation (YoY %)",
+          labels: [...cpiYoYWin.map(x => x.date), ...futureDates],
+          history: [...cpiYoYWin.map(x => x.value), ...Array(horizonMonths).fill(null)],
+          forecast: [...Array(cpiYoYWin.length).fill(null), ...fc_cpi.forecast],
+          lower:   [...Array(cpiYoYWin.length).fill(null), ...fc_cpi.lower],
+          upper:   [...Array(cpiYoYWin.length).fill(null), ...fc_cpi.upper],
+          unit: "%",
+          forecast_start_index: cpiYoYWin.length - 1
+        },
+        unrate: {
+          title: "Unemployment Rate (%)",
+          labels: [...unrateWin.map(x => x.date), ...futureDates],
+          history: [...unrateWin.map(x => x.value), ...Array(horizonMonths).fill(null)],
+          forecast: [...Array(unrateWin.length).fill(null), ...fc_unrate.forecast],
+          lower:   [...Array(unrateWin.length).fill(null), ...fc_unrate.lower],
+          upper:   [...Array(unrateWin.length).fill(null), ...fc_unrate.upper],
+          unit: "%",
+          forecast_start_index: unrateWin.length - 1
+        },
+        fedfunds: {
+          title: "Fed Funds Rate (%)",
+          labels: [...fedWin.map(x => x.date), ...futureDates],
+          history: [...fedWin.map(x => x.value), ...Array(horizonMonths).fill(null)],
+          forecast: [...Array(fedWin.length).fill(null), ...fc_fed.forecast],
+          lower:   [...Array(fedWin.length).fill(null), ...fc_fed.lower],
+          upper:   [...Array(fedWin.length).fill(null), ...fc_fed.upper],
+          unit: "%",
+          forecast_start_index: fedWin.length - 1
+        },
+        indpro: {
+          title: "Industrial Production (Index)",
+          labels: [...indproWin.map(x => x.date), ...futureDates],
+          history: [...indproWin.map(x => x.value), ...Array(horizonMonths).fill(null)],
+          forecast: [...Array(indproWin.length).fill(null), ...fc_indpro.forecast],
+          lower:   [...Array(indproWin.length).fill(null), ...fc_indpro.lower],
+          upper:   [...Array(indproWin.length).fill(null), ...fc_indpro.upper],
+          unit: "index",
+          forecast_start_index: indproWin.length - 1
+        },
+      };
+
+      // 7) Narrative with OpenAI
+      const snapshot = {
+        last_updated: dataLastUpdated,
+        latest: {
+          cpi_yoy: cpiYoYWin.at(-1)?.value,
+          unrate: unrateWin.at(-1)?.value,
+          fedfunds: fedWin.at(-1)?.value,
+          indpro: indproWin.at(-1)?.value,
+        },
+        horizon_months: horizonMonths,
+        window_months: windowMonths,
+        uncertainty_note: "Bands are RMSE-based from one-step-ahead residuals of Holt fit (approx 95%)."
+      };
+
+      const prompt = [
         {
           role: "system",
           content:
-            "You are a cautious macro forecaster. Use ONLY the provided data + baseline. " +
-            "Be clear about uncertainty. Keep it readable."
+            "You are a cautious macro forecaster. Use the provided snapshot and explain what the charts imply. " +
+            "Write in clear sections and bullets. Keep it short and professional."
         },
         {
           role: "user",
           content:
-            `Question: ${q}\n\n` +
-            `Latest observation date across series: ${dataLastUpdated}\n\n` +
-            `Baseline (transparent heuristic):\n${JSON.stringify(baseline, null, 2)}\n\n` +
-            `Recent data snapshots:\n${JSON.stringify(trimForPrompt(fred), null, 2)}\n\n` +
-            `Write a 2026 forecast focusing on GDP, inflation, unemployment, and interest rates.`
+            `User question: ${question}\n\n` +
+            `Data snapshot:\n${JSON.stringify(snapshot, null, 2)}\n\n` +
+            `Model:\n- Holt linear smoothing (level + trend)\n- Window: last ${windowMonths} months\n- Horizon: ${horizonMonths} months\n` +
+            `- Uncertainty: RMSE-based ~95% band\n\n` +
+            `Write a 2026-oriented narrative (even if horizon is short), and refer to each chart briefly.`
         }
       ];
 
-     const r = await fetch("https://api.openai.com/v1/responses", {
-  method: "POST",
-  headers: {
-    "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    model: "gpt-5.2",
-    input,
-    text: {
-      format: {
-        type: "json_schema",
-        name: schema.name,
-        schema: schema.schema,
-        strict: true
-      }
-    }
-  })
-});
+      const openaiResp = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-5.2",
+          input: prompt,
+        })
+      });
 
-
-      if (!r.ok) {
-        const detail = await r.text();
+      if (!openaiResp.ok) {
+        const detail = await openaiResp.text();
         return json({ error: "OpenAI error", detail }, 500, cors);
       }
 
-      const openaiJson = await r.json();
-      const outText = extractResponseText(openaiJson);
-      const structured = JSON.parse(outText);
+      const openaiJson = await openaiResp.json();
+      const answer = extractResponseText(openaiJson);
 
-      const answer = formatAnswer(structured, dataLastUpdated);
+      return json({ answer, data_last_updated: dataLastUpdated, charts, snapshot }, 200, cors);
 
-      return json({ answer, data_last_updated: dataLastUpdated, baseline }, 200, cors);
     } catch (e) {
       return json({ error: e?.message || "Unknown error" }, 500, cors);
     }
   }
 };
+
+// ---------- Helpers ----------
 
 function json(obj, status = 200, headers = {}) {
   return new Response(JSON.stringify(obj, null, 2), {
@@ -115,27 +166,25 @@ function json(obj, status = 200, headers = {}) {
 }
 
 async function fredSeries(apiKey, seriesId) {
-  if (!apiKey) throw new Error(`Missing FRED_API_KEY in env for ${seriesId}`);
-
   const url = new URL("https://api.stlouisfed.org/fred/series/observations");
   url.searchParams.set("series_id", seriesId);
-  url.searchParams.set("api_key", apiKey);
+  url.searchParams.set("api_key", apiKey || "");
   url.searchParams.set("file_type", "json");
   url.searchParams.set("sort_order", "asc");
 
   const r = await fetch(url.toString());
+  const text = await r.text();
 
   if (!r.ok) {
-    const body = await r.text();
-    throw new Error(`FRED failed for ${seriesId} | status=${r.status} | body=${body.slice(0, 200)}`);
+    throw new Error(`FRED failed for ${seriesId} (${r.status}): ${text.slice(0, 200)}`);
   }
 
-  const j = await r.json();
+  const j = JSON.parse(text);
+
   return (j.observations || [])
     .map(o => ({ date: o.date, value: o.value === "." ? null : Number(o.value) }))
     .filter(o => o.value !== null);
 }
-
 
 function latestDateAcross(fred) {
   let latest = "1900-01-01";
@@ -149,69 +198,84 @@ function latestDateAcross(fred) {
   return latest;
 }
 
-function yoyFromMonthly(series) {
-  const n = series.length;
-  if (n < 13) return null;
-  const last = series[n - 1].value;
-  const prev = series[n - 13].value;
-  return (last / prev) - 1;
+function lastN(arr, n) {
+  if (!arr || arr.length <= n) return arr;
+  return arr.slice(-n);
 }
 
-function lastValue(series) {
-  return series.length ? series[series.length - 1].value : null;
-}
-
-function annualizedQoqFromQuarterly(series) {
-  const n = series.length;
-  if (n < 2) return null;
-  const last = series[n - 1].value;
-  const prev = series[n - 2].value;
-  return Math.pow(last / prev, 4) - 1;
-}
-
-function blendPct(a, b, weightA) {
-  if (a == null) return b;
-  return (a * weightA) + (b * (1 - weightA));
-}
-
-function pct(x) {
-  if (x == null || Number.isNaN(x)) return null;
-  return `${(x * 100).toFixed(1)}%`;
-}
-
-function buildBaseline2026(fred) {
-  const gdp_qoq_ann = annualizedQoqFromQuarterly(fred.GDPC1);
-  const cpi_yoy = yoyFromMonthly(fred.CPIAUCSL);
-  const unrate = lastValue(fred.UNRATE);
-  const ff = lastValue(fred.FEDFUNDS);
-
-  const gdp_2026 = blendPct(gdp_qoq_ann, 0.02, 0.45);
-  const infl_2026 = blendPct(cpi_yoy, 0.025, 0.50);
-
-  const un_2026 = unrate != null ? (unrate + 0.2) : null;
-  const ff_end_2026 = ff != null ? Math.max(0, ff - 0.25) : null;
-
-  return {
-    method: "Heuristic baseline (mean reversion + small drifts).",
-    inputs: {
-      last_gdp_qoq_annualized: pct(gdp_qoq_ann),
-      last_cpi_yoy: pct(cpi_yoy),
-      last_unemployment: unrate,
-      last_fed_funds: ff
-    },
-    baseline_2026: {
-      real_gdp_growth: pct(gdp_2026),
-      cpi_inflation: pct(infl_2026),
-      unemployment_rate: un_2026 != null ? `${un_2026.toFixed(1)}%` : null,
-      fed_funds_end: ff_end_2026 != null ? `${ff_end_2026.toFixed(2)}%` : null
-    }
-  };
-}
-
-function trimForPrompt(fred) {
-  const out = {};
-  for (const k of Object.keys(fred)) out[k] = fred[k].slice(-18);
+// CPI YoY % = (CPI_t / CPI_{t-12} - 1) * 100
+function computeYoYPercent(monthlySeries) {
+  const out = [];
+  for (let i = 12; i < monthlySeries.length; i++) {
+    const cur = monthlySeries[i];
+    const prev = monthlySeries[i - 12];
+    const yoy = ((cur.value / prev.value) - 1) * 100;
+    out.push({ date: cur.date, value: Number(yoy.toFixed(2)) });
+  }
   return out;
+}
+
+// Holt linear smoothing + RMSE-based ~95% band
+function holtForecastWithBands(values, horizon, alpha = 0.35, beta = 0.15, z = 1.96) {
+  if (!values || values.length < 6) {
+    const last = values?.at(-1) ?? null;
+    return {
+      forecast: Array(horizon).fill(last),
+      sigma: 0,
+      lower: Array(horizon).fill(last),
+      upper: Array(horizon).fill(last),
+    };
+  }
+
+  let level = values[0];
+  let trend = values[1] - values[0];
+
+  const errors = [];
+
+  for (let t = 1; t < values.length; t++) {
+    const y = values[t];
+    const yhat = level + trend;
+    errors.push(y - yhat);
+
+    const prevLevel = level;
+    level = alpha * y + (1 - alpha) * (level + trend);
+    trend = beta * (level - prevLevel) + (1 - beta) * trend;
+  }
+
+  const mse = errors.reduce((s, e) => s + e * e, 0) / Math.max(1, errors.length);
+  const sigma = Math.sqrt(mse);
+
+  const forecast = [];
+  const lower = [];
+  const upper = [];
+
+  for (let h = 1; h <= horizon; h++) {
+    const f = level + h * trend;
+    forecast.push(Number(f.toFixed(2)));
+    lower.push(Number((f - z * sigma).toFixed(2)));
+    upper.push(Number((f + z * sigma).toFixed(2)));
+  }
+
+  return { forecast, sigma: Number(sigma.toFixed(2)), lower, upper };
+}
+
+function buildFutureMonthlyDates(lastDateStr, horizonMonths) {
+  const [y, m] = lastDateStr.split("-").map(Number);
+  const dates = [];
+
+  let year = y;
+  let month = m;
+
+  for (let i = 1; i <= horizonMonths; i++) {
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    const mm = String(month).padStart(2, "0");
+    dates.push(`${year}-${mm}-01`);
+  }
+  return dates;
 }
 
 function extractResponseText(openaiJson) {
@@ -223,30 +287,5 @@ function extractResponseText(openaiJson) {
     }
   }
   if (openaiJson.output_text) return openaiJson.output_text;
-  throw new Error("Could not extract model text");
-}
-
-function formatAnswer(s, dataLastUpdated) {
-  return (
-`🧭 Headline
-${s.headline}
-
-📌 2026 Key Numbers (illustrative)
-- Real GDP growth: ${s.numbers.real_gdp_growth_2026}
-- CPI inflation: ${s.numbers.cpi_inflation_2026}
-- Unemployment: ${s.numbers.unemployment_2026}
-- Fed funds (end of 2026): ${s.numbers.fed_funds_end_2026}
-
-🧠 Reasoning (data through ${dataLastUpdated})
-${s.reasoning}
-
-⚠️ Risks
-- ${s.risks.join("\n- ")}
-
-👀 What to watch
-- ${s.what_to_watch.join("\n- ")}
-
-🗂️ Data notes
-${s.data_notes}`
-  );
+  return "(No answer returned)";
 }

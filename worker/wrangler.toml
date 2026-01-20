@@ -1,3 +1,4 @@
 name = "us-econ-forecast-worker"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
+

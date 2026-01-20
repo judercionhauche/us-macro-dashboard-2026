@@ -1,38 +1,190 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>US Economy 2026 Forecast Bot</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>US Macro Dashboard + Forecast</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chart.js local -->
+  <script src="./chart.umd.js"></script>
 </head>
+
 <body>
+  <div class="bg"></div>
+
   <main class="wrap">
-    <header>
-      <h1>US Economy Forecast-2026</h1>
-      <p class="sub">Live macro data </p>
+    <header class="hero">
+      <div class="heroLeft">
+        <div class="brandRow">
+          <div class="logoMark" aria-hidden="true"></div>
+          <div>
+            <div class="brandTitle">US Macro Dashboard</div>
+            <div class="brandSub">Live FRED + simple forecasting → clear narrative for 2026.</div>
+          </div>
+        </div>
+
+        <div class="heroBadges">
+          <span class="badge">FRED</span>
+          <span class="badge">Holt Trend</span>
+          <span class="badge">2026 Focus</span>
+        </div>
+      </div>
+
+      <div class="heroRight">
+        <div class="chip" id="updatedChip">Updated: —</div>
+      </div>
     </header>
 
-    <section class="card">
-      <label class="label">Ask</label>
-      <textarea id="q" rows="3">Give me a forecast for the US economy in 2026.</textarea>
+    <!-- Controls -->
+    <section class="card controls">
+      <div class="controlsRow">
+        <div class="field grow">
+          <label>Question</label>
+          <input id="question" value="Give me a forecast for the US economy in 2026." />
+        </div>
 
-      <div class="row">
-        <button id="askBtn">Generate forecast</button>
-        <span id="status" class="status"></span>
+        <div class="field">
+          <label>Forecast horizon</label>
+          <select id="horizon">
+            <option value="5">5 months</option>
+            <option value="12" selected>12 months</option>
+            <option value="24">24 months</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Data window</label>
+          <select id="window">
+            <option value="36" selected>Last 36 months</option>
+            <option value="60">Last 60 months</option>
+            <option value="120">Last 120 months</option>
+          </select>
+        </div>
+
+        <button id="runBtn" class="btn">
+          <span class="btnText">Run</span>
+          <span class="btnGlow" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="metaRow">
+        <div class="meta" id="metaText">Ready.</div>
+        <div class="metaHint">Tip: change horizon/window to see trend sensitivity.</div>
       </div>
     </section>
 
-    <section class="card">
-      <label class="label">Answer</label>
-      <pre id="answer" class="answer">(Your forecast will appear here)</pre>
+    <!-- Landing state -->
+    <section id="emptyState" class="card empty">
+      <div class="emptyTitle">Ask once. Get a clean macro story.</div>
+      <div class="emptyGrid">
+        <div class="emptyItem">
+          <div class="emptyIcon">📈</div>
+          <div>
+            <div class="emptyHead">Charts</div>
+            <div class="emptyDesc">CPI, unemployment, Fed funds, industrial production.</div>
+          </div>
+        </div>
+        <div class="emptyItem">
+          <div class="emptyIcon">🧠</div>
+          <div>
+            <div class="emptyHead">Narrative</div>
+            <div class="emptyDesc">Executive take + chart-by-chart implications for 2026.</div>
+          </div>
+        </div>
+        <div class="emptyItem">
+          <div class="emptyIcon">⚡</div>
+          <div>
+            <div class="emptyHead">Fast</div>
+            <div class="emptyDesc">No heavy models—just live data + smart interpretation.</div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <footer>
-      <small>Developed by: Judercio Nhauche</small>
-    </footer>
+    <!-- Results -->
+    <div id="results" class="hidden">
+      <!-- KPI strip -->
+      <section class="kpis">
+        <div class="kpi card">
+          <div class="kpiLabel">Inflation (CPI YoY)</div>
+          <div class="kpiValue" id="kpiCpi">—</div>
+          <div class="kpiSub" id="kpiCpiSub">latest</div>
+        </div>
+        <div class="kpi card">
+          <div class="kpiLabel">Unemployment</div>
+          <div class="kpiValue" id="kpiUnrate">—</div>
+          <div class="kpiSub" id="kpiUnrateSub">latest</div>
+        </div>
+        <div class="kpi card">
+          <div class="kpiLabel">Fed Funds</div>
+          <div class="kpiValue" id="kpiFed">—</div>
+          <div class="kpiSub" id="kpiFedSub">latest</div>
+        </div>
+        <div class="kpi card">
+          <div class="kpiLabel">Industrial Production</div>
+          <div class="kpiValue" id="kpiIndpro">—</div>
+          <div class="kpiSub" id="kpiIndproSub">latest</div>
+        </div>
+      </section>
+
+      <!-- Charts -->
+      <section class="grid">
+        <div class="card chartCard">
+          <div class="cardTop">
+            <div>
+              <div class="cardTitle">CPI Inflation (YoY %)</div>
+              <div class="cardMini" id="miniCpi">—</div>
+            </div>
+          </div>
+          <div class="chartBox"><canvas id="chartCpi"></canvas></div>
+        </div>
+
+        <div class="card chartCard">
+          <div class="cardTop">
+            <div>
+              <div class="cardTitle">Unemployment Rate (%)</div>
+              <div class="cardMini" id="miniUnrate">—</div>
+            </div>
+          </div>
+          <div class="chartBox"><canvas id="chartUnrate"></canvas></div>
+        </div>
+
+        <div class="card chartCard">
+          <div class="cardTop">
+            <div>
+              <div class="cardTitle">Fed Funds Rate (%)</div>
+              <div class="cardMini" id="miniFed">—</div>
+            </div>
+          </div>
+          <div class="chartBox"><canvas id="chartFed"></canvas></div>
+        </div>
+
+        <div class="card chartCard">
+          <div class="cardTop">
+            <div>
+              <div class="cardTitle">Industrial Production (Index)</div>
+              <div class="cardMini" id="miniIndpro">—</div>
+            </div>
+          </div>
+          <div class="chartBox"><canvas id="chartIndpro"></canvas></div>
+        </div>
+      </section>
+
+      <!-- Narrative -->
+      <section class="card narrative">
+        <div class="nTop">
+          <div>
+            <div class="nTitle">2026 Narrative</div>
+            <div class="nSub">A readable executive take + what each chart implies.</div>
+          </div>
+          <div class="chip" id="methodChip">Holt trend</div>
+        </div>
+        <div id="narrative" class="narrativeBox">(Your forecast will appear here)</div>
+      </section>
+    </div>
   </main>
 
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
