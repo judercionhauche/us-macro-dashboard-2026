@@ -1,187 +1,193 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>US Macro Dashboard + Forecast</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>US Macro Dashboard</title>
 
-  <!-- Chart.js local -->
-  <script src="./chart.umd.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <div class="bg"></div>
+  <div class="page-bg"></div>
 
   <main class="wrap">
-    <header class="hero">
-      <div class="heroLeft">
-        <div class="brandRow">
-          <div class="logoMark" aria-hidden="true"></div>
-          <div>
-            <div class="brandTitle">US Macro Dashboard</div>
-            <div class="brandSub">Live FRED + simple forecasting → clear narrative for 2026.</div>
+    <header class="top">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <h1>US Macro Dashboard</h1>
+          <p>Live FRED + simple forecasting → Narrative for 2026.</p>
+          <div class="chips">
+            <span class="chip">FRED</span>
+            <span class="chip">Holt Trend</span>
+            <span class="chip">2026 Focus</span>
           </div>
-        </div>
-
-        <div class="heroBadges">
-          <span class="badge">FRED</span>
-          <span class="badge">Holt Trend</span>
-          <span class="badge">2026 Focus</span>
         </div>
       </div>
 
-      <div class="heroRight">
-        <div class="chip" id="updatedChip">Updated: —</div>
+      <div class="updated-pill">
+        <span class="muted">Updated:</span>
+        <span id="updatedValue">—</span>
       </div>
     </header>
+<div class="page">
 
-    <!-- Controls -->
-    <section class="card controls">
-      <div class="controlsRow">
-        <div class="field grow">
-          <label>Question</label>
-          <input id="question" value="Give me a forecast for the US economy in 2026." />
-        </div>
 
-        <div class="field">
-          <label>Forecast horizon</label>
-          <select id="horizon">
-            <option value="5">5 months</option>
-            <option value="12" selected>12 months</option>
-            <option value="24">24 months</option>
-          </select>
-        </div>
+  <!-- Hero -->
+  <section class="heroGrid">
+    <div class="heroLeft">
+      <div class="kicker">Macro Forecast Terminal</div>
+      <h1 class="heroH1">A clean 2026 macro view, from live signals.</h1>
+      <p class="heroP">
+        Ask a question. I’ll confirm year, horizon, and window only if missing — then generate charts and a concise narrative.
+      </p>
 
-        <div class="field">
-          <label>Data window</label>
-          <select id="window">
-            <option value="36" selected>Last 36 months</option>
-            <option value="60">Last 60 months</option>
-            <option value="120">Last 120 months</option>
-          </select>
-        </div>
-
-        <button id="runBtn" class="btn">
-          <span class="btnText">Run</span>
-          <span class="btnGlow" aria-hidden="true"></span>
-        </button>
+      <div class="heroActions">
+        <a class="btnPrimary" href="#conversation">Run a forecast</a>
+        <div class="heroMeta">Live FRED · Transparent horizon/window · Not investment advice</div>
       </div>
-
-      <div class="metaRow">
-        <div class="meta" id="metaText">Ready.</div>
-        <div class="metaHint">Tip: change horizon/window to see trend sensitivity.</div>
-      </div>
-    </section>
-
-    <!-- Landing state -->
-    <section id="emptyState" class="card empty">
-      <div class="emptyTitle">Ask once. Get a clean macro story.</div>
-      <div class="emptyGrid">
-        <div class="emptyItem">
-          <div>
-            <div class="emptyHead">Charts</div>
-            <div class="emptyDesc">CPI, unemployment, Fed funds, industrial production.</div>
-          </div>
-        </div>
-        <div class="emptyItem">
-          <div>
-            <div class="emptyHead">Narrative</div>
-            <div class="emptyDesc">Executive take + chart-by-chart implications for 2026.</div>
-          </div>
-        </div>
-        <div class="emptyItem">
-          <div class="emptyIcon">⚡</div>
-          <div>
-            <div class="emptyDesc">No heavy models—just live data + smart interpretation.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Results -->
-    <div id="results" class="hidden">
-      <!-- KPI strip -->
-      <section class="kpis">
-        <div class="kpi card">
-          <div class="kpiLabel">Inflation (CPI YoY)</div>
-          <div class="kpiValue" id="kpiCpi">—</div>
-          <div class="kpiSub" id="kpiCpiSub">latest</div>
-        </div>
-        <div class="kpi card">
-          <div class="kpiLabel">Unemployment</div>
-          <div class="kpiValue" id="kpiUnrate">—</div>
-          <div class="kpiSub" id="kpiUnrateSub">latest</div>
-        </div>
-        <div class="kpi card">
-          <div class="kpiLabel">Fed Funds</div>
-          <div class="kpiValue" id="kpiFed">—</div>
-          <div class="kpiSub" id="kpiFedSub">latest</div>
-        </div>
-        <div class="kpi card">
-          <div class="kpiLabel">Industrial Production</div>
-          <div class="kpiValue" id="kpiIndpro">—</div>
-          <div class="kpiSub" id="kpiIndproSub">latest</div>
-        </div>
-      </section>
-
-      <!-- Charts -->
-      <section class="grid">
-        <div class="card chartCard">
-          <div class="cardTop">
-            <div>
-              <div class="cardTitle">CPI Inflation (YoY %)</div>
-              <div class="cardMini" id="miniCpi">—</div>
-            </div>
-          </div>
-          <div class="chartBox"><canvas id="chartCpi"></canvas></div>
-        </div>
-
-        <div class="card chartCard">
-          <div class="cardTop">
-            <div>
-              <div class="cardTitle">Unemployment Rate (%)</div>
-              <div class="cardMini" id="miniUnrate">—</div>
-            </div>
-          </div>
-          <div class="chartBox"><canvas id="chartUnrate"></canvas></div>
-        </div>
-
-        <div class="card chartCard">
-          <div class="cardTop">
-            <div>
-              <div class="cardTitle">Fed Funds Rate (%)</div>
-              <div class="cardMini" id="miniFed">—</div>
-            </div>
-          </div>
-          <div class="chartBox"><canvas id="chartFed"></canvas></div>
-        </div>
-
-        <div class="card chartCard">
-          <div class="cardTop">
-            <div>
-              <div class="cardTitle">Industrial Production (Index)</div>
-              <div class="cardMini" id="miniIndpro">—</div>
-            </div>
-          </div>
-          <div class="chartBox"><canvas id="chartIndpro"></canvas></div>
-        </div>
-      </section>
-
-      <!-- Narrative -->
-      <section class="card narrative">
-        <div class="nTop">
-          <div>
-            <div class="nTitle">2026 Narrative</div>
-            <div class="nSub">A readable executive take + what each chart implies.</div>
-          </div>
-          <div class="chip" id="methodChip">Holt trend</div>
-        </div>
-        <div id="narrative" class="narrativeBox">(Your forecast will appear here)</div>
-      </section>
     </div>
-  </main>
 
-  <script src="app.js"></script>
+    <aside class="heroRight">
+      <div class="card">
+        <div class="cardTitle">Output</div>
+        <div class="cardBody">
+          <div class="cardLine"><span class="dot"></span> Charts: CPI, unemployment, policy rate, industrial production</div>
+          <div class="cardLine"><span class="dot"></span> Narrative: baseline, implications, key risks</div>
+       <div class="cardFoot">Designed for clear, decision-ready insights.</div>
+
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Feature strip -->
+  <section class="features">
+    <div class="featureCard">
+      <div class="featureTitle">Live inputs</div>
+      <div class="featureText">FRED series pulled on demand.</div>
+    </div>
+    <div class="featureCard">
+      <div class="featureTitle">Transparent knobs</div>
+      <div class="featureText">Window + horizon are explicit.</div>
+    </div>
+    <div class="featureCard">
+      <div class="featureTitle">Readable output</div>
+      <div class="featureText">History vs forecast + narrative.</div>
+    </div>
+  </section>
+
+  
+ 
+</div>
+
+    <!-- Conversation only (no top controls) -->
+    <section class="card convo-card">
+      <div class="card-head">
+        <div>
+          <h2>Conversation</h2>
+          <p class="muted">
+            Please provide the year, forecast horizon, and data window. Once confirmed, I will generate the charts and accompanying narrative.
+          </p>
+        </div>
+      </div>
+
+      <!-- Context pills: hidden until user sets values -->
+      <div id="contextPills" class="context-pills hidden">
+        <span class="pill"><span class="muted">Year:</span> <b id="ctxYear"></b></span>
+        <span class="pill"><span class="muted">Horizon:</span> <b id="ctxHorizon"></b></span>
+        <span class="pill"><span class="muted">Window:</span> <b id="ctxWindow"></b></span>
+      </div>
+
+      <div id="thread" class="thread"></div>
+
+    <div class="composer">
+  <input id="userInput" type="text" placeholder="Type here… e.g. forecast US economy in 2026" />
+  <button id="sendBtn" class="btn">Send</button>
+  <button id="resetBtn" class="btn btnGhost" type="button">Reset</button>
+</div>
+
+
+      <div id="statusLine" class="status muted"></div>
+    </section>
+
+    <!-- Results: hidden until conditions met + successful response -->
+    <section id="results" class="results hidden">
+      <div class="tip-card">
+        <h3>Tip</h3>
+        <p class="muted">
+          Try switching horizon/window and compare how “trend extrapolation” shifts the story.
+        </p>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-title">Inflation (CPI YoY)</div>
+          <div class="kpi-value" id="kpiCpi">—</div>
+          <div class="kpi-sub muted" id="kpiCpiSub">latest (—)</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">Unemployment</div>
+          <div class="kpi-value" id="kpiUnemp">—</div>
+          <div class="kpi-sub muted" id="kpiUnempSub">latest (—)</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">Fed Funds</div>
+          <div class="kpi-value" id="kpiFed">—</div>
+          <div class="kpi-sub muted" id="kpiFedSub">latest (—)</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-title">Industrial Production</div>
+          <div class="kpi-value" id="kpiIp">—</div>
+          <div class="kpi-sub muted" id="kpiIpSub">latest (—)</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="chart-card">
+          <div class="chart-title">CPI Inflation (YoY %)</div>
+          <div class="chart-sub muted" id="subCpi">Latest: —</div>
+          <canvas id="chartCpi"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Unemployment Rate (%)</div>
+          <div class="chart-sub muted" id="subUnemp">Latest: —</div>
+          <canvas id="chartUnemp"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Fed Funds Rate (%)</div>
+          <div class="chart-sub muted" id="subFed">Latest: —</div>
+          <canvas id="chartFed"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Industrial Production (Index)</div>
+          <div class="chart-sub muted" id="subIp">Latest: —</div>
+          <canvas id="chartIp"></canvas>
+        </div>
+      </div>
+
+      <div class="narrative">
+        <h3>2026 Narrative</h3>
+        <div id="narrativeBox" class="narrative-box"></div>
+      </div>
+    </section>
+
+    <footer class="foot muted">
+  Built with live macro signals + simple trend forecasting. Not financial advice.<br>
+  &copy; 2026 Judércio Nhauche. All rights reserved.
+  </footer>
+
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.11/dist/purify.min.js"></script>
+
+  <script src="./app.js"></script>
 </body>
 </html>
