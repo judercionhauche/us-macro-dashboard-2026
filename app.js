@@ -1,724 +1,499 @@
 /* =========================
    CONFIG
 ========================= */
-
-// Your Cloudflare Worker base URL
 const API_URL = "https://us-econ-forecast-worker.judercionhauche.workers.dev";
-
-// Expected endpoints:
-// - GET  /meta     (optional) -> { availableYears: [...], maxHorizonMonths, defaultWindowMonths }
-// - POST /forecast            -> { updated, series:{...}, narrative }
-// If /meta doesn't exist, we fallback safely.
-
 
 /* =========================
    DOM
 ========================= */
-const el = {
-  thread: document.getElementById("thread"),
-  userInput: document.getElementById("userInput"),
-  sendBtn: document.getElementById("sendBtn"),
-  status: document.getElementById("statusLine"),
-  updatedValue: document.getElementById("updatedValue"),
+const $ = (id) => document.getElementById(id);
 
-  contextPills: document.getElementById("contextPills"),
-  ctxYear: document.getElementById("ctxYear"),
-  ctxHorizon: document.getElementById("ctxHorizon"),
-  ctxWindow: document.getElementById("ctxWindow"),
+const runBtn = $("runBtn");
+const sendBtn = $("sendBtn");
+const resetBtn = $("resetBtn");
+const chatInput = $("chatInput");
+const chatBox = $("chatBox");
+const results = $("results");
+const updatedLabel = $("updatedLabel");
+const knobPills = $("knobPills");
 
-  results: document.getElementById("results"),
-  resetBtn: document.getElementById("resetBtn"),
+const yearNow = $("yearNow");
+yearNow.textContent = new Date().getFullYear();
 
+/* Macro Lab */
+const scenarioSelect = $("scenarioSelect");
+const nfciShock = $("nfciShock");
+const ffShock = $("ffShock");
+const nfciShockVal = $("nfciShockVal");
+const ffShockVal = $("ffShockVal");
+const applyLabBtn = $("applyLabBtn");
 
-  // KPI
-  kpiCpi: document.getElementById("kpiCpi"),
-  kpiUnemp: document.getElementById("kpiUnemp"),
-  kpiFed: document.getElementById("kpiFed"),
-  kpiIp: document.getElementById("kpiIp"),
-  kpiCpiSub: document.getElementById("kpiCpiSub"),
-  kpiUnempSub: document.getElementById("kpiUnempSub"),
-  kpiFedSub: document.getElementById("kpiFedSub"),
-  kpiIpSub: document.getElementById("kpiIpSub"),
-
-  // chart subs
-  subCpi: document.getElementById("subCpi"),
-  subUnemp: document.getElementById("subUnemp"),
-  subFed: document.getElementById("subFed"),
-  subIp: document.getElementById("subIp"),
-
-  narrativeBox: document.getElementById("narrativeBox"),
-
-  canvCpi: document.getElementById("chartCpi"),
-  canvUnemp: document.getElementById("chartUnemp"),
-  canvFed: document.getElementById("chartFed"),
-  canvIp: document.getElementById("chartIp"),
+/* KPI elements */
+const KPI = {
+  cpi: { val: $("kpiCpi"), meta: $("kpiCpiMeta") },
+  u:   { val: $("kpiU"),   meta: $("kpiUMeta") },
+  ff:  { val: $("kpiFf"),  meta: $("kpiFfMeta") },
+  ip:  { val: $("kpiIp"),  meta: $("kpiIpMeta") },
+  gdp: { val: $("kpiGdp"), meta: $("kpiGdpMeta") },
+  fci: { val: $("kpiFci"), meta: $("kpiFciMeta") },
 };
 
-if (!el.thread || !el.userInput || !el.sendBtn) {
-  console.warn("Missing conversation DOM elements. Check your HTML ids.");
-}
+const LatestLabels = {
+  cpi: $("cpiLatest"),
+  u: $("uLatest"),
+  ff: $("ffLatest"),
+  ip: $("ipLatest"),
+  gdp: $("gdpLatest"),
+  fci: $("fciLatest"),
+};
 
+const narrativeText = $("narrativeText");
 
 /* =========================
    STATE
 ========================= */
 const state = {
-  // Optional meta
-  availableYears: null,
-  maxHorizonMonths: 24,
-  defaultWindowMonths: 36,
+  year: 2026,
+  horizonMonths: 12,
+  windowMonths: 36,
+  pending: null, // "horizon" | "window" | null
+  lastQuestion: "Give me a forecast for the US economy in 2026",
+  charts: {}, // chart instances
 
-  // conversation-collected parameters
-  year: null,
-  horizonMonths: null,
-  windowMonths: null,
-
-  // last user intent (worker needs question)
-  lastQuestion: null,
-
-  // flow
-  awaiting: null, // "year" | "horizon" | "window" | null
-
-  charts: {
-    cpi: null,
-    unemp: null,
-    fed: null,
-    ip: null
-  }
+  scenario: "baseline",
+  shocks: {
+    nfci: 0.0,
+    ff: 0.0,
+  },
 };
-
-
-/* =========================
-   SMALL CSS INJECT (tight, nerdy, clean)
-========================= */
-(function injectNarrativeCSS() {
-  const css = `
-    .narrative-prose {
-      line-height: 1.45;
-      font-size: 0.96rem;
-    }
-    .narrative-prose h4{
-      margin: 0.35rem 0 0.25rem;
-      font-size: 1.02rem;
-      font-weight: 800;
-    }
-    .narrative-prose h5{
-      margin: 0.55rem 0 0.25rem;
-      font-size: 0.98rem;
-      font-weight: 750;
-    }
-    .narrative-prose p{
-      margin: 0.18rem 0;
-      line-height: 1.5;
-    }
-    .narrative-prose ul{
-      margin: 0.2rem 0 0.35rem 1.05rem;
-      padding: 0;
-    }
-    .narrative-prose li{
-      margin: 0.14rem 0;
-      line-height: 1.45;
-    }
-    .narrative-prose .nar-note{
-      margin: 0.45rem 0;
-      padding: 0.55rem 0.7rem;
-      border: 1px solid rgba(0,0,0,0.06);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.55);
-    }
-    .narrative-prose .nar-divider{
-      height: 1px;
-      opacity: 0.25;
-      margin: 0.65rem 0;
-      background: rgba(0,0,0,0.12);
-    }
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
-
 
 /* =========================
    UTIL
 ========================= */
-function addMsg(role, text){
-  const row = document.createElement("div");
-  row.className = `msg ${role === "you" ? "you" : "bot"}`;
-
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-
-  const label = document.createElement("div");
-  label.className = "label";
-  label.textContent = role === "you" ? "You" : "Assistant";
-
-  const content = document.createElement("div");
-  content.textContent = text;
-
-  bubble.appendChild(label);
-  bubble.appendChild(content);
-  row.appendChild(bubble);
-  el.thread.appendChild(row);
-
-  el.thread.scrollTop = el.thread.scrollHeight;
-  el.resetBtn?.addEventListener("click", resetApp);
-  el.userInput?.focus();
-
+function addBubble(text, who = "assistant") {
+  const div = document.createElement("div");
+  div.className = `bubble ${who}`;
+  div.textContent = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function setStatus(msg){
-  if (el.status) el.status.textContent = msg || "";
-}
-
-function ensureMetaFallback(){
-  if (!state.availableYears) state.availableYears = [2024, 2025, 2026];
-}
-
-function showContextPillsIfAny(){
-  const hasAny = Boolean(state.year || state.horizonMonths || state.windowMonths);
-  if (!el.contextPills) return;
-
-  if (!hasAny){
-    el.contextPills.classList.add("hidden");
-    return;
+function setPills() {
+  knobPills.innerHTML = "";
+  const items = [
+    { k: "Year", v: String(state.year) },
+    { k: "Horizon", v: `${state.horizonMonths}m` },
+    { k: "Window", v: `${state.windowMonths}m` },
+    { k: "Scenario", v: state.scenario.replaceAll("_", " ") },
+    { k: "ΔNFCI", v: state.shocks.nfci.toFixed(2) },
+    { k: "ΔFF", v: state.shocks.ff.toFixed(2) },
+  ];
+  for (const it of items) {
+    const p = document.createElement("span");
+    p.className = "pillMini";
+    p.innerHTML = `<strong>${it.k}:</strong> ${it.v}`;
+    knobPills.appendChild(p);
   }
-
-  el.contextPills.classList.remove("hidden");
-  if (el.ctxYear) el.ctxYear.textContent = state.year ?? "—";
-  if (el.ctxHorizon) el.ctxHorizon.textContent = state.horizonMonths ? `${state.horizonMonths} months` : "—";
-  if (el.ctxWindow) el.ctxWindow.textContent = state.windowMonths ? `Last ${state.windowMonths} months` : "—";
 }
 
-function parseYear(text){
-  const m = String(text).match(/\b(20\d{2})\b/);
-  return m ? Number(m[1]) : null;
+function parseYear(text) {
+  const m = text.match(/\b(20\d{2})\b/);
+  if (!m) return null;
+  const y = parseInt(m[1], 10);
+  if (y < 2000 || y > 2100) return null;
+  return y;
 }
 
-function parseMonths(text){
-  const lower = String(text).toLowerCase();
+function parseHorizon(text) {
+  const m =
+    text.match(/horizon\s*[:=]?\s*(\d{1,2})\b/i) ||
+    text.match(/\b(\d{1,2})\s*(?:months|month)\b/i) ||
+    text.match(/\b(\d{1,2})m\b/i);
 
-  const ym = lower.match(/(\d+)\s*(year|years|yr|yrs)\b/);
-  if (ym) return Number(ym[1]) * 12;
-
-  const mm = lower.match(/(\d+)\s*(month|months|mo|mos)\b/);
-  if (mm) return Number(mm[1]);
-
-  const bare = lower.match(/^\s*(\d+)\s*$/);
-  if (bare) return Number(bare[1]);
-
-  return null;
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (!Number.isFinite(n) || n <= 0 || n > 60) return null;
+  return n;
 }
 
-function parseHorizon(text){
-  const lower = String(text).toLowerCase();
-  if (/(horizon|next|forecast|ahead)/i.test(lower)) return parseMonths(lower);
-  return null;
+function parseWindow(text) {
+  const m =
+    text.match(/window\s*[:=]?\s*(\d{1,3})\b/i) ||
+    text.match(/\bwindow\s*(\d{1,3})\b/i);
+
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (!Number.isFinite(n) || n < 12 || n > 240) return null;
+  return n;
 }
 
-function parseWindow(text){
-  const lower = String(text).toLowerCase();
-  if (/(window|last|past|lookback|history)/i.test(lower)) return parseMonths(lower);
-  return null;
+function fmt(x, digits = 2) {
+  if (x === null || x === undefined) return "—";
+  if (!Number.isFinite(Number(x))) return "—";
+  return Number(x).toFixed(digits);
 }
-
-function formatMaybePct(val){
-  if (val === null || val === undefined || Number.isNaN(val)) return "—";
-  return `${Number(val).toFixed(2)}%`;
-}
-function formatMaybeIndex(val){
-  if (val === null || val === undefined || Number.isNaN(val)) return "—";
-  return `${Number(val).toFixed(2)}`;
-}
-
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function scrollToResults(){
-  const target = document.getElementById("results");
-  if (!target) return;
-
-  // ensure it's visible before scrolling
-  target.classList.remove("hidden");
-
-  target.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  // tiny offset for sticky-ish headers / comfort
-  window.scrollBy({ top: -10, left: 0, behavior: "smooth" });
-}
-if (el.results) el.results.classList.remove("hidden");
-scrollToResults();
-
 
 /* =========================
-   NARRATIVE RENDER (safe HTML, no marked, no stack overflow)
+   CHARTS
 ========================= */
-function renderNarrativeNice(text){
-  if (!el.narrativeBox) return;
-
-  let raw = (text || "").toString().trim();
-  if (!raw){
-    el.narrativeBox.classList.add("narrative-prose");
-    el.narrativeBox.innerHTML = `<p>No narrative returned.</p>`;
-    
-    return;
-  }
-
-  // Hard cleanup: remove noisy markdown emphasis
-  raw = raw
-    .replace(/\*\*\*/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/```+/g, "")
-    .replace(/\n{3,}/g, "\n\n");
-
-  const lines = raw.split("\n");
-  let html = [];
-  let inList = false;
-
-  for (let line of lines){
-    const t = line.trim();
-    if (!t){
-      if (inList){ html.push(`</ul>`); inList = false; }
-      continue;
-    }
-
-    // dividers
-    if (t === "---" || t === "—" || t === "--"){
-      if (inList){ html.push(`</ul>`); inList = false; }
-      html.push(`<div class="nar-divider"></div>`);
-      continue;
-    }
-
-    // NOTE lines
-    if (/^note[:\s]/i.test(t) || t.startsWith(">")){
-      if (inList){ html.push(`</ul>`); inList = false; }
-      const noteText = t.replace(/^>\s?/, "");
-      html.push(`<div class="nar-note">${escapeHtml(noteText)}</div>`);
-      continue;
-    }
-
-    // strong section headers (common in your outputs)
-    if (/^(executive|starting point|what each|baseline|risks|watch|key|setup)/i.test(t)){
-      if (inList){ html.push(`</ul>`); inList = false; }
-      html.push(`<h4>${escapeHtml(t)}</h4>`);
-      continue;
-    }
-
-    // numbered section headers
-    if (/^\d+[\)\.]\s+/.test(t)){
-      if (inList){ html.push(`</ul>`); inList = false; }
-      html.push(`<h5>${escapeHtml(t)}</h5>`);
-      continue;
-    }
-
-    // bullets
-    if (t.startsWith("-") || t.startsWith("•")){
-      if (!inList){ html.push(`<ul>`); inList = true; }
-      html.push(`<li>${escapeHtml(t.replace(/^[-•]\s*/, ""))}</li>`);
-      continue;
-    }
-
-    // normal paragraph
-    if (inList){ html.push(`</ul>`); inList = false; }
-    html.push(`<p>${escapeHtml(t)}</p>`);
-  }
-
-  if (inList) html.push(`</ul>`);
-
-  el.narrativeBox.classList.add("narrative-prose");
-  el.narrativeBox.innerHTML = html.join("");
-  
-}
-
-
-/* =========================
-   META (OPTIONAL)
-========================= */
-async function loadMeta(){
-  try{
-    const r = await fetch(`${API_URL}/meta`, { method: "GET" });
-    if (!r.ok) throw new Error(`meta status ${r.status}`);
-    const data = await r.json();
-
-    if (Array.isArray(data.availableYears) && data.availableYears.length){
-      state.availableYears = data.availableYears;
-    }
-    if (Number.isFinite(data.maxHorizonMonths)) state.maxHorizonMonths = data.maxHorizonMonths;
-    if (Number.isFinite(data.defaultWindowMonths)) state.defaultWindowMonths = data.defaultWindowMonths;
-
-  } catch (_) {
-    ensureMetaFallback();
+function destroyChart(id) {
+  if (state.charts[id]) {
+    state.charts[id].destroy();
+    delete state.charts[id];
   }
 }
 
+function buildDatasets(series, { showAnchor = false, anchorLabel = "Anchor" } = {}) {
+  const labels = series.labels || [];
+  const history = series.history || [];
+  const forecast = series.forecast || [];
+  const p10 = series.p10_forecast || null;
+  const p90 = series.p90_forecast || null;
 
-/* =========================
-   RESPONSE NORMALIZATION
-   Accepts worker variations and maps to:
-   series: { cpi, unemployment, fedFunds, industrialProduction }
-========================= */
-function normalizeWorkerResponse(data){
-  const out = {
-    updated: data?.updated || data?.data_last_updated || null,
-    narrative: data?.narrative || data?.answer || "",
-    series: null
-  };
+  const ds = [];
 
-  // Preferred shape: data.series
-  if (data && data.series) {
-    out.series = data.series;
-  }
+  ds.push({
+    label: "History",
+    data: history,
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.28,
+    spanGaps: true,
+  });
 
-  // Alternative shape: data.charts (from your worker.js earlier)
-  if (!out.series && data && data.charts) {
-    // map charts -> series style
-    const cpiSrc = data.charts.cpi_yoy || data.charts.cpi || null;
-    const unSrc  = data.charts.unrate || data.charts.unemployment || null;
-    const fedSrc = data.charts.fedfunds || data.charts.fedFunds || null;
-    const ipSrc  = data.charts.indpro || data.charts.industrialProduction || null;
-
-    if (cpiSrc && unSrc && fedSrc && ipSrc){
-      out.series = {
-        cpi: {
-          labels: cpiSrc.labels || [],
-          history: cpiSrc.history || [],
-          forecast: cpiSrc.forecast || [],
-          latest: (data.snapshot?.latest?.cpi_yoy ?? null)
-        },
-        unemployment: {
-          labels: unSrc.labels || [],
-          history: unSrc.history || [],
-          forecast: unSrc.forecast || [],
-          latest: (data.snapshot?.latest?.unrate ?? null)
-        },
-        fedFunds: {
-          labels: fedSrc.labels || [],
-          history: fedSrc.history || [],
-          forecast: fedSrc.forecast || [],
-          latest: (data.snapshot?.latest?.fedfunds ?? null)
-        },
-        industrialProduction: {
-          labels: ipSrc.labels || [],
-          history: ipSrc.history || [],
-          forecast: ipSrc.forecast || [],
-          latest: (data.snapshot?.latest?.indpro ?? null)
-        }
-      };
-    }
-  }
-
-  // Safety: if series exists but CPI key is cpi_yoy, map it
-  if (out.series && !out.series.cpi && out.series.cpi_yoy){
-    out.series.cpi = out.series.cpi_yoy;
-  }
-
-  return out;
-}
-
-
-/* =========================
-   FLOW / CHATGPT STYLE
-========================= */
-function askForMissing(){
-  ensureMetaFallback();
-
-  if (!state.lastQuestion){
-    addMsg("bot", `What would you like to forecast? Example: “Give me a forecast for the US economy in 2026.”`);
-    return true;
-  }
-
-  if (!state.year){
-    state.awaiting = "year";
-    addMsg("bot", `What year do you want?\nAvailable: ${state.availableYears.join(", ")}`);
-    return true;
-  }
-
-  if (!state.availableYears.includes(state.year)){
-    state.awaiting = "year";
-    addMsg("bot", `I don’t have data configured for ${state.year}.\nAvailable: ${state.availableYears.join(", ")}.\nWhich one should I use?`);
-    state.year = null;
-    showContextPillsIfAny();
-    return true;
-  }
-
-  if (!state.horizonMonths){
-    state.awaiting = "horizon";
-    addMsg("bot", `How far ahead should I forecast (horizon in months)?\nExamples: “3 months”, “12 months”.`);
-    return true;
-  }
-
-  if (state.horizonMonths > state.maxHorizonMonths){
-    state.awaiting = "horizon";
-    addMsg("bot", `That horizon is too long.\nMax horizon is ${state.maxHorizonMonths} months. Try 3, 6, 12.`);
-    state.horizonMonths = null;
-    showContextPillsIfAny();
-    return true;
-  }
-
-  if (!state.windowMonths){
-    state.awaiting = "window";
-    addMsg("bot", `What lookback window should I use (in months)?\nExamples: “last 36 months”, “past 60 months”.`);
-    return true;
-  }
-
-  state.awaiting = null;
-  return false;
-}
-
-async function handleUserTurn(text){
-  addMsg("you", text);
-
-  // Only update question if user is not answering a follow-up prompt
-  if (!state.awaiting) state.lastQuestion = text.trim();
-
-  // Extract parameters if present
-  const y = parseYear(text);
-  const hz = parseHorizon(text);
-  const win = parseWindow(text);
-
-  if (y) state.year = y;
-  if (hz) state.horizonMonths = hz;
-  if (win) state.windowMonths = win;
-
-  // If we’re awaiting a specific item, allow bare answers
-  if (state.awaiting === "year") {
-    const maybeY = parseYear(text);
-    if (maybeY) state.year = maybeY;
-  }
-  if (state.awaiting === "horizon") {
-    const maybeH = parseMonths(text);
-    if (maybeH) state.horizonMonths = maybeH;
-  }
-  if (state.awaiting === "window") {
-    const maybeW = parseMonths(text);
-    if (maybeW) state.windowMonths = maybeW;
-  }
-
-  if (!state.windowMonths && /default|standard|normal/i.test(text)) {
-    state.windowMonths = state.defaultWindowMonths;
-  }
-
-  showContextPillsIfAny();
-
-  const asked = askForMissing();
-  if (asked) return;
-
-  await generateForecast();
-}
-
-
-/* =========================
-   FORECAST CALL + RENDER
-========================= */
-async function generateForecast(){
-  if (el.results) el.results.classList.add("hidden");
-
-  setStatus("Generating…");
-  addMsg("bot", `Got it. Running forecast for ${state.year}, horizon ${state.horizonMonths} months, window ${state.windowMonths} months…`);
-
-  try{
-    const payload = {
-      question: state.lastQuestion,          // ✅ required by worker
-      year: state.year,                      // optional for future
-      horizonMonths: state.horizonMonths,
-      windowMonths: state.windowMonths
-    };
-
-    const r = await fetch(`${API_URL}/forecast`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+  if (p10 && p90) {
+    ds.push({
+      label: "P10",
+      data: p10,
+      borderWidth: 1,
+      pointRadius: 0,
+      tension: 0.28,
+      spanGaps: true,
+      borderDash: [2, 3],
     });
 
-    if (!r.ok){
-      const t = await r.text();
-      throw new Error(`Worker error (${r.status}): ${t}`);
-    }
-
-    const raw = await r.json();
-    const data = normalizeWorkerResponse(raw);
-
-    if (data.updated && el.updatedValue) el.updatedValue.textContent = data.updated;
-
-    const series = data.series || {};
-    const required = ["cpi", "unemployment", "fedFunds", "industrialProduction"];
-    for (const k of required){
-      if (!series[k]) throw new Error(`Worker response missing series: ${k}`);
-      if (!Array.isArray(series[k].labels)) throw new Error(`Series ${k} missing labels[]`);
-      if (!Array.isArray(series[k].history)) throw new Error(`Series ${k} missing history[]`);
-      if (!Array.isArray(series[k].forecast)) throw new Error(`Series ${k} missing forecast[]`);
-    }
-
-    if (el.results) el.results.classList.remove("hidden");
-
-    renderKpis(series, data.updated);
-    renderAllCharts(series);
-
-    renderNarrativeNice((data.narrative || "").trim());
-
-    setStatus("");
-    addMsg("bot", `Done! Want to change horizon/window/year, or ask another macro question?`);
-
-  } catch (err){
-    setStatus("");
-    addMsg("bot",
-      `Something went wrong.\n${String(err.message || err)}\n\nIf this keeps happening, check:\n- Worker route (/forecast)\n- CORS\n- Response shape (series + labels/history/forecast + narrative)`
-    );
+    ds.push({
+      label: "P10–P90 band",
+      data: p90,
+      borderWidth: 0,
+      pointRadius: 0,
+      tension: 0.28,
+      spanGaps: true,
+      fill: "-1",
+    });
   }
+
+  ds.push({
+    label: "Forecast (mean)",
+    data: forecast,
+    borderWidth: 2,
+    borderDash: [6, 4],
+    pointRadius: 0,
+    tension: 0.28,
+    spanGaps: true,
+  });
+
+  if (showAnchor && series.anchor !== null && series.anchor !== undefined) {
+    const a = Number(series.anchor);
+    const arr = labels.map(() => a);
+    ds.push({
+      label: anchorLabel,
+      data: arr,
+      borderWidth: 2,
+      borderDash: [3, 3],
+      pointRadius: 0,
+    });
+  }
+
+  return { labels, datasets: ds };
 }
 
-function renderKpis(series, updated){
-  const cpi = series.cpi?.latest;
-  const un = series.unemployment?.latest;
-  const fed = series.fedFunds?.latest;
-  const ip = series.industrialProduction?.latest;
+function renderChart(canvasId, series, opts = {}) {
+  if (!series || !Array.isArray(series.labels)) return;
 
-  if (el.kpiCpi) el.kpiCpi.textContent = formatMaybePct(cpi);
-  if (el.kpiUnemp) el.kpiUnemp.textContent = formatMaybePct(un);
-  if (el.kpiFed) el.kpiFed.textContent = formatMaybePct(fed);
-  if (el.kpiIp) el.kpiIp.textContent = formatMaybeIndex(ip);
+  destroyChart(canvasId);
 
-  const stamp = updated || "—";
-  if (el.kpiCpiSub) el.kpiCpiSub.textContent = `latest (${stamp})`;
-  if (el.kpiUnempSub) el.kpiUnempSub.textContent = `latest (${stamp})`;
-  if (el.kpiFedSub) el.kpiFedSub.textContent = `latest (${stamp})`;
-  if (el.kpiIpSub) el.kpiIpSub.textContent = `latest (${stamp})`;
+  const ctx = $(canvasId).getContext("2d");
+  const { labels, datasets } = buildDatasets(series, opts);
 
-  if (el.subCpi) el.subCpi.textContent = `Latest: ${formatMaybePct(cpi)}`;
-  if (el.subUnemp) el.subUnemp.textContent = `Latest: ${formatMaybePct(un)}`;
-  if (el.subFed) el.subFed.textContent = `Latest: ${formatMaybePct(fed)}`;
-  if (el.subIp) el.subIp.textContent = `Latest: ${formatMaybeIndex(ip)}`;
-}
-
-function chartConfig(labels, hist, fcst){
-  return {
+  state.charts[canvasId] = new Chart(ctx, {
     type: "line",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "History",
-          data: hist,
-          borderWidth: 2,
-          tension: 0.25,
-          pointRadius: 0
-        },
-        {
-          label: "Forecast",
-          data: fcst,
-          borderWidth: 2,
-          borderDash: [6, 5],
-          tension: 0.25,
-          pointRadius: 0
-        }
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
-      plugins: { legend: { display: true } },
-      scales: { x: { ticks: { maxRotation: 0 } } }
-    }
-  };
+      maintainAspectRatio: false,
+      resizeDelay: 80,
+      animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", labels: { boxWidth: 22 } },
+        tooltip: { enabled: true },
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6 }, grid: { color: "rgba(0,0,0,0.06)" } },
+        y: { grid: { color: "rgba(0,0,0,0.06)" } },
+      },
+    },
+  });
 }
-
-function rebuildChart(existing, canvasEl, cfg){
-  if (!canvasEl) return existing;
-  if (existing) existing.destroy();
-  return new Chart(canvasEl, cfg);
-}
-
-function renderAllCharts(series){
-  const c = series.cpi;
-  const u = series.unemployment;
-  const f = series.fedFunds;
-  const ip = series.industrialProduction;
-
-  state.charts.cpi = rebuildChart(state.charts.cpi, el.canvCpi, chartConfig(c.labels, c.history, c.forecast));
-  state.charts.unemp = rebuildChart(state.charts.unemp, el.canvUnemp, chartConfig(u.labels, u.history, u.forecast));
-  state.charts.fed = rebuildChart(state.charts.fed, el.canvFed, chartConfig(f.labels, f.history, f.forecast));
-  state.charts.ip = rebuildChart(state.charts.ip, el.canvIp, chartConfig(ip.labels, ip.history, ip.forecast));
-}
-
 
 /* =========================
-   EVENTS
+   DATA BINDING
 ========================= */
-function onSend(){
-  const txt = (el.userInput?.value || "").trim();
-  if (!txt) return;
-  el.userInput.value = "";
-  handleUserTurn(txt);
+function setKpi(key, value, updated) {
+  if (!KPI[key]) return;
+  const isPercent = (key === "cpi" || key === "u" || key === "ff" || key === "gdp");
+  KPI[key].val.textContent = isPercent ? `${fmt(value, 2)}%` : fmt(value, 2);
+  KPI[key].meta.textContent = updated ? `latest (${updated})` : "latest";
 }
 
-el.sendBtn?.addEventListener("click", onSend);
-el.userInput?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") onSend();
-});
+function setLatestLabel(key, value) {
+  if (!LatestLabels[key]) return;
+  const isPercent = (key === "cpi" || key === "u" || key === "ff" || key === "gdp");
+  LatestLabels[key].textContent = isPercent ? `${fmt(value, 2)}%` : fmt(value, 2);
+}
 
-function resetApp(){
-  // state reset
-  state.year = null;
-  state.horizonMonths = null;
-  state.windowMonths = null;
-  state.lastQuestion = null;
-  state.awaiting = null;
+function showResults(raw) {
+  results.hidden = false;
 
-  // UI reset
-  if (el.status) el.status.textContent = "";
-  if (el.updatedValue) el.updatedValue.textContent = "—";
-  if (el.userInput) el.userInput.value = "";
+  const updated = raw.updated || "—";
+  updatedLabel.textContent = updated;
 
-  // clear thread
-  if (el.thread) el.thread.innerHTML = "";
+  const S = raw.series || {};
 
-  // hide context pills + results
-  if (el.contextPills) el.contextPills.classList.add("hidden");
-  if (el.results) el.results.classList.add("hidden");
+  const map = [
+    { local: "cpi", s: S.cpi, chart: "cpiChart", anchor: true, anchorLabel: "Fed target (2%)" },
+    { local: "u", s: S.unemployment, chart: "uChart" },
+    { local: "ff", s: S.fedFunds, chart: "ffChart" },
+    { local: "ip", s: S.industrialProduction, chart: "ipChart" },
+    { local: "gdp", s: S.gdp, chart: "gdpChart" },
+    { local: "fci", s: (S.financialConditions || S.fci || S.nfci), chart: "fciChart", anchor: true, anchorLabel: "Neutral (0)" },
+  ];
 
-  // destroy charts (avoid memory leaks)
-  Object.keys(state.charts).forEach(k => {
-    if (state.charts[k]) {
-      state.charts[k].destroy();
-      state.charts[k] = null;
+  for (const item of map) {
+    if (!item.s) continue;
+
+    const latest = item.s.latest;
+    setLatestLabel(item.local, latest);
+    setKpi(item.local, latest, updated);
+
+    renderChart(item.chart, item.s, {
+      showAnchor: !!item.anchor,
+      anchorLabel: item.anchorLabel || "Anchor",
+    });
+  }
+
+  narrativeText.textContent = raw.narrative || "—";
+}
+
+/* =========================
+   API CALL
+========================= */
+async function runForecast(questionText) {
+  const payload = {
+    question: questionText || state.lastQuestion,
+    year: state.year,
+    horizonMonths: state.horizonMonths,
+    windowMonths: state.windowMonths,
+
+    // NEW: regime + stress tests
+    scenario: state.scenario,
+    shocks: {
+      nfci: state.shocks.nfci,
+      ff: state.shocks.ff,
+    },
+  };
+
+  addBubble(
+    `Running: ${state.scenario.replaceAll("_"," ")} · ΔNFCI ${state.shocks.nfci.toFixed(2)} · ΔFF ${state.shocks.ff.toFixed(2)}pp`,
+    "assistant"
+  );
+
+  const res = await fetch(`${API_URL}/forecast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Forecast failed (${res.status}). ${t}`);
+  }
+
+  const raw = await res.json();
+  showResults(raw);
+  addBubble("Done. Want to stress-test harder, or switch regimes?", "assistant");
+}
+
+/* =========================
+   CHAT LOGIC
+========================= */
+function handleUserMessage(text) {
+  const msg = text.trim();
+  if (!msg) return;
+
+  addBubble(msg, "user");
+
+  if (state.pending === "horizon") {
+    const n = parseHorizon(msg) || (/^\d+$/.test(msg) ? parseInt(msg, 10) : null);
+    if (!n || n <= 0 || n > 60) {
+      addBubble("Please give a horizon in months (1–60). Example: 12", "assistant");
+      return;
+    }
+    state.horizonMonths = n;
+    state.pending = "window";
+    setPills();
+    addBubble("Quick check — what window in months? Example: 36", "assistant");
+    return;
+  }
+
+  if (state.pending === "window") {
+    const n = parseWindow(msg) || (/^\d+$/.test(msg) ? parseInt(msg, 10) : null);
+    if (!n || n < 12 || n > 240) {
+      addBubble("Please give a window in months (12–240). Example: 36", "assistant");
+      return;
+    }
+    state.windowMonths = n;
+    state.pending = null;
+    setPills();
+    runForecast(state.lastQuestion).catch((e) => {
+      console.error(e);
+      addBubble("Something went wrong running the forecast. Check console for details.", "assistant");
+    });
+    return;
+  }
+
+  const y = parseYear(msg);
+  const h = parseHorizon(msg);
+  const w = parseWindow(msg);
+
+  if (y) state.year = y;
+  if (h) state.horizonMonths = h;
+  if (w) state.windowMonths = w;
+
+  state.lastQuestion = msg;
+  setPills();
+
+  const horizonMissing = !h;
+  const windowMissing = !w;
+
+  if (horizonMissing || windowMissing) {
+    if (horizonMissing) {
+      state.pending = "horizon";
+      addBubble("Quick check — what horizon in months? Example: 12", "assistant");
+      return;
+    }
+    if (windowMissing) {
+      state.pending = "window";
+      addBubble("Quick check — what window in months? Example: 36", "assistant");
+      return;
+    }
+  }
+
+  runForecast(msg).catch((e) => {
+    console.error(e);
+    addBubble("Something went wrong running the forecast. Check console for details.", "assistant");
+  });
+}
+
+/* =========================
+   RESET
+========================= */
+function resetAll() {
+  Object.keys(state.charts).forEach((id) => {
+    if (state.charts[id]) state.charts[id].destroy();
+    delete state.charts[id];
+  });
+
+  state.year = 2026;
+  state.horizonMonths = 12;
+  state.windowMonths = 36;
+  state.pending = null;
+  state.lastQuestion = "Give me a forecast for the US economy in 2026";
+
+  // reset lab
+  state.scenario = "baseline";
+  state.shocks.nfci = 0.0;
+  state.shocks.ff = 0.0;
+  if (scenarioSelect) scenarioSelect.value = "baseline";
+  if (nfciShock) nfciShock.value = "0";
+  if (ffShock) ffShock.value = "0";
+  if (nfciShockVal) nfciShockVal.textContent = "0.00";
+  if (ffShockVal) ffShockVal.textContent = "0.00";
+
+  results.hidden = true;
+  updatedLabel.textContent = "—";
+  knobPills.innerHTML = "";
+  narrativeText.textContent = "";
+
+  chatBox.innerHTML = `
+    <div class="bubble assistant">
+      Tell me what you want to forecast.<br />
+      Example: <em>“Give me a forecast for the US economy in 2026.”</em><br /><br />
+      If you don’t specify year/horizon/window, I’ll ask.
+    </div>
+  `;
+
+  setPills();
+}
+
+function wireLab() {
+  if (!scenarioSelect || !nfciShock || !ffShock) return;
+
+  // reflect live labels (without running)
+  const sync = () => {
+    nfciShockVal.textContent = Number(nfciShock.value).toFixed(2);
+    ffShockVal.textContent = Number(ffShock.value).toFixed(2);
+  };
+  sync();
+
+  scenarioSelect.addEventListener("change", () => {
+    state.scenario = scenarioSelect.value;
+    setPills();
+  });
+
+  nfciShock.addEventListener("input", () => {
+    state.shocks.nfci = Number(nfciShock.value);
+    sync();
+    setPills();
+  });
+
+  ffShock.addEventListener("input", () => {
+    state.shocks.ff = Number(ffShock.value);
+    sync();
+    setPills();
+  });
+
+  applyLabBtn.addEventListener("click", () => {
+    runForecast(state.lastQuestion).catch((e) => {
+      console.error(e);
+      addBubble("Lab apply failed. Check console.", "assistant");
+    });
+  });
+}
+
+function wire() {
+  setPills();
+  wireLab();
+
+  runBtn.addEventListener("click", () => {
+    handleUserMessage(chatInput.value || state.lastQuestion);
+    chatInput.value = "";
+  });
+
+  sendBtn.addEventListener("click", () => {
+    handleUserMessage(chatInput.value);
+    chatInput.value = "";
+  });
+
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      handleUserMessage(chatInput.value);
+      chatInput.value = "";
     }
   });
 
-  // re-seed first message
-  addMsg("bot",
-    `Tell me what you want to forecast.\nExample: “Give me a forecast for the US economy in 2026.”\n\nIf you don’t specify year/horizon/window, I’ll ask.`
-  );
-
-  // scroll back up to conversation area
-  document.querySelector(".convo-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  resetBtn.addEventListener("click", resetAll);
 }
 
-/* =========================
-   INIT
-========================= */
-(async function init(){
-  await loadMeta();
-
-  // Hard-hide pills and results at boot (prevents “default showing”)
-  if (el.contextPills) el.contextPills.classList.add("hidden");
-  if (el.results) el.results.classList.add("hidden");
-
-  // No defaults (per your request)
-  state.year = null;
-  state.horizonMonths = null;
-  state.windowMonths = null;
-  state.lastQuestion = null;
-  state.awaiting = null;
-
-  showContextPillsIfAny();
-
-  addMsg("bot",
-    `Tell me what you want to forecast.\nExample: “Give me a forecast for the US economy in 2026.”\n\nIf you don’t specify year/horizon/window, I’ll ask.`
-  );
-})();
+wire();
