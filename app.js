@@ -57,8 +57,8 @@ const state = {
   horizonMonths: 12,
   windowMonths: 36,
   pending: null, // "horizon" | "window" | null
-  lastQuestion: "Give me a forecast for the US economy in 2026",
-  charts: {}, // chart instances
+  lastQuestion: "Forecast the US economy in 2026",
+  charts: {},
 
   scenario: "baseline",
   shocks: {
@@ -295,8 +295,6 @@ async function runForecast(questionText) {
     year: state.year,
     horizonMonths: state.horizonMonths,
     windowMonths: state.windowMonths,
-
-    // NEW: regime + stress tests
     scenario: state.scenario,
     shocks: {
       nfci: state.shocks.nfci,
@@ -322,7 +320,7 @@ async function runForecast(questionText) {
 
   const raw = await res.json();
   showResults(raw);
-  addBubble("Done. Want to stress-test harder, or switch regimes?", "assistant");
+  addBubble("Done.", "assistant");
 }
 
 /* =========================
@@ -337,20 +335,20 @@ function handleUserMessage(text) {
   if (state.pending === "horizon") {
     const n = parseHorizon(msg) || (/^\d+$/.test(msg) ? parseInt(msg, 10) : null);
     if (!n || n <= 0 || n > 60) {
-      addBubble("Please give a horizon in months (1–60). Example: 12", "assistant");
+      addBubble("Horizon (months 1–60). Example: 12", "assistant");
       return;
     }
     state.horizonMonths = n;
     state.pending = "window";
     setPills();
-    addBubble("Quick check — what window in months? Example: 36", "assistant");
+    addBubble("Window (months). Example: 36", "assistant");
     return;
   }
 
   if (state.pending === "window") {
     const n = parseWindow(msg) || (/^\d+$/.test(msg) ? parseInt(msg, 10) : null);
     if (!n || n < 12 || n > 240) {
-      addBubble("Please give a window in months (12–240). Example: 36", "assistant");
+      addBubble("Window (months 12–240). Example: 36", "assistant");
       return;
     }
     state.windowMonths = n;
@@ -358,7 +356,7 @@ function handleUserMessage(text) {
     setPills();
     runForecast(state.lastQuestion).catch((e) => {
       console.error(e);
-      addBubble("Something went wrong running the forecast. Check console for details.", "assistant");
+      addBubble("Forecast failed. Check console.", "assistant");
     });
     return;
   }
@@ -380,19 +378,19 @@ function handleUserMessage(text) {
   if (horizonMissing || windowMissing) {
     if (horizonMissing) {
       state.pending = "horizon";
-      addBubble("Quick check — what horizon in months? Example: 12", "assistant");
+      addBubble("Horizon in months?", "assistant");
       return;
     }
     if (windowMissing) {
       state.pending = "window";
-      addBubble("Quick check — what window in months? Example: 36", "assistant");
+      addBubble("Window in months?", "assistant");
       return;
     }
   }
 
   runForecast(msg).catch((e) => {
     console.error(e);
-    addBubble("Something went wrong running the forecast. Check console for details.", "assistant");
+    addBubble("Forecast failed. Check console.", "assistant");
   });
 }
 
@@ -409,9 +407,8 @@ function resetAll() {
   state.horizonMonths = 12;
   state.windowMonths = 36;
   state.pending = null;
-  state.lastQuestion = "Give me a forecast for the US economy in 2026";
+  state.lastQuestion = "Forecast the US economy in 2026";
 
-  // reset lab
   state.scenario = "baseline";
   state.shocks.nfci = 0.0;
   state.shocks.ff = 0.0;
@@ -428,9 +425,8 @@ function resetAll() {
 
   chatBox.innerHTML = `
     <div class="bubble assistant">
-      Tell me what you want to forecast.<br />
-      Example: <em>“Give me a forecast for the US economy in 2026.”</em><br /><br />
-      If you don’t specify year/horizon/window, I’ll ask.
+      Ask what to forecast.<br />
+      <em>Forecast the US economy in 2026</em>
     </div>
   `;
 
@@ -440,7 +436,6 @@ function resetAll() {
 function wireLab() {
   if (!scenarioSelect || !nfciShock || !ffShock) return;
 
-  // reflect live labels (without running)
   const sync = () => {
     nfciShockVal.textContent = Number(nfciShock.value).toFixed(2);
     ffShockVal.textContent = Number(ffShock.value).toFixed(2);
@@ -467,7 +462,7 @@ function wireLab() {
   applyLabBtn.addEventListener("click", () => {
     runForecast(state.lastQuestion).catch((e) => {
       console.error(e);
-      addBubble("Lab apply failed. Check console.", "assistant");
+      addBubble("Apply failed. Check console.", "assistant");
     });
   });
 }

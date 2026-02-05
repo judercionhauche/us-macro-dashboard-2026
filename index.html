@@ -11,83 +11,60 @@
   <div class="shell">
     <header class="top">
       <div class="brand">
-        <div class="logo"></div>
-        <div>
+        <div class="logo" aria-hidden="true"></div>
+        <div class="brandText">
           <div class="title">US Macro Dashboard</div>
-          <div class="subtitle">Ensemble forecasting + uncertainty bands → Narrative for 2026.</div>
+          <div class="subtitle">Forecasts with uncertainty • Scenarios • 2026 narrative</div>
         </div>
       </div>
 
       <div class="updated">
-        <span class="pill">Updated: <strong id="updatedLabel">—</strong></span>
+        <span class="pill">Updated <strong id="updatedLabel">—</strong></span>
       </div>
     </header>
 
+    <!-- Minimal hero -->
     <section class="hero">
-      <div class="heroCard">
-        <div class="badge">Macro Forecast Terminal</div>
-        <h1>A clean 2026 macro view, from assembled scenarios.</h1>
-        <p>
-          Ask a question. I’ll confirm year, horizon, and window only if missing —
-          then generate charts and a concise narrative.
-        </p>
+      <div class="heroRow">
+        <h1 class="heroTitle">Macro forecasts</h1>
         <div class="heroActions">
-          <button id="runBtn" class="btn primary">Run a forecast</button>
-          <div class="micro">
-            Transparent horizon/window · Regimes + stress tests · Not investment advice
-          </div>
+          <button id="runBtn" class="btn primary">Run forecast</button>
+          <button id="resetBtn" class="btn ghost">Reset</button>
         </div>
       </div>
-
-      <div class="heroCard small">
-        <h3>Output</h3>
-        <ul>
-          <li>Charts: CPI, unemployment, policy rate, industrial production</li>
-          <li>Plus: GDP growth + financial conditions</li>
-          <li>Narrative: baseline, implications, key risks</li>
-        </ul>
-        <div class="muted">Designed for clear, decision-ready insights.</div>
-      </div>
+      <p class="heroHint muted">
+        Ask in the box below. If horizon/window is missing, it asks once—then runs.
+      </p>
     </section>
 
     <section class="chat">
       <div class="chatHead">
         <h2>Conversation</h2>
-        <p class="muted">
-          Ask what you want forecasted. If year/horizon/window are missing, I’ll ask once — then run.
-        </p>
+        <p class="muted">Example: “Forecast the US economy in 2026.”</p>
       </div>
 
-      <div id="knobPills" class="knobPills"></div>
+      <div id="knobPills" class="knobPills" aria-label="Current settings"></div>
 
-      <div class="chatBox" id="chatBox">
+      <div class="chatBox" id="chatBox" role="log" aria-live="polite">
         <div class="bubble assistant">
-          Tell me what you want to forecast.<br />
-          Example: <em>“Give me a forecast for the US economy in 2026.”</em><br /><br />
-          If you don’t specify year/horizon/window, I’ll ask.
+          Ask what to forecast.<br />
+          <em>Forecast the US economy in 2026</em>
         </div>
       </div>
 
       <div class="chatInputRow">
-        <input id="chatInput" type="text" placeholder="Type here… e.g. forecast US economy in 2026" />
+        <label class="srOnly" for="chatInput">Ask a question</label>
+        <input id="chatInput" type="text" placeholder="Type a request… (year/horizon/window optional)" />
         <button id="sendBtn" class="btn">Send</button>
-        <button id="resetBtn" class="btn ghost">Reset</button>
       </div>
+      <div class="footnote muted">For analysis only. Not financial advice.</div>
     </section>
 
     <section class="results" id="results" hidden>
-      <div class="tipCard">
-        <div class="tipTitle">Tip</div>
-        <div class="muted">Try switching horizon/window or scenario and compare how uncertainty + story shifts.</div>
-      </div>
-
-      <!-- NEW: MACRO LAB -->
+      <!-- Minimal lab -->
       <div class="labCard" id="labCard">
         <div class="labHead">
-          <div>
-            <div class="labTitle">Macro Lab</div>
-            <div class="muted labSub">Regime scenarios + stress tests (causal “what-if”).</div>
-          </div>
+          <div class="labTitle">Scenario Lab</div>
           <button id="applyLabBtn" class="btn">Apply</button>
         </div>
 
@@ -100,91 +77,78 @@
               <option value="credit_tightening">Credit tightening</option>
               <option value="reacceleration">Re-acceleration</option>
             </select>
-            <div class="hint">Changes drift + volatility in a regime-consistent way.</div>
           </div>
 
           <div class="labControl">
             <label for="nfciShock">NFCI shock (Δ)</label>
             <input id="nfciShock" type="range" min="-1.0" max="1.0" step="0.05" value="0" />
             <div class="labRow"><span class="muted">Easier</span><strong id="nfciShockVal">0.00</strong><span class="muted">Tighter</span></div>
-            <div class="hint">Propagates through growth/labor/inflation with lag.</div>
           </div>
 
           <div class="labControl">
             <label for="ffShock">Fed funds shock (pp, Δ)</label>
             <input id="ffShock" type="range" min="-2.0" max="2.0" step="0.10" value="0" />
             <div class="labRow"><span class="muted">Cuts</span><strong id="ffShockVal">0.00</strong><span class="muted">Hikes</span></div>
-            <div class="hint">A simple policy impulse (for stress-testing only).</div>
           </div>
         </div>
       </div>
 
-      <div class="kpis">
-        <div class="kpi"><div class="kpiLabel">Inflation (CPI YoY)</div><div class="kpiVal" id="kpiCpi">—</div><div class="kpiMeta" id="kpiCpiMeta">—</div></div>
+      <!-- KPIs -->
+      <div class="kpis" aria-label="Key indicators">
+        <div class="kpi"><div class="kpiLabel">CPI YoY</div><div class="kpiVal" id="kpiCpi">—</div><div class="kpiMeta" id="kpiCpiMeta">—</div></div>
         <div class="kpi"><div class="kpiLabel">Unemployment</div><div class="kpiVal" id="kpiU">—</div><div class="kpiMeta" id="kpiUMeta">—</div></div>
         <div class="kpi"><div class="kpiLabel">Fed Funds</div><div class="kpiVal" id="kpiFf">—</div><div class="kpiMeta" id="kpiFfMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Industrial Production</div><div class="kpiVal" id="kpiIp">—</div><div class="kpiMeta" id="kpiIpMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Real GDP (YoY)</div><div class="kpiVal" id="kpiGdp">—</div><div class="kpiMeta" id="kpiGdpMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Financial Conditions (NFCI)</div><div class="kpiVal" id="kpiFci">—</div><div class="kpiMeta" id="kpiFciMeta">—</div></div>
+        <div class="kpi"><div class="kpiLabel">Ind. Production</div><div class="kpiVal" id="kpiIp">—</div><div class="kpiMeta" id="kpiIpMeta">—</div></div>
+        <div class="kpi"><div class="kpiLabel">Real GDP YoY</div><div class="kpiVal" id="kpiGdp">—</div><div class="kpiMeta" id="kpiGdpMeta">—</div></div>
+        <div class="kpi"><div class="kpiLabel">NFCI</div><div class="kpiVal" id="kpiFci">—</div><div class="kpiMeta" id="kpiFciMeta">—</div></div>
       </div>
 
+      <!-- Charts -->
       <div class="grid">
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>CPI Inflation (YoY %)</h3>
-              <div class="muted">Latest: <span id="cpiLatest">—</span></div>
-            </div>
+            <h3>CPI Inflation (YoY %)</h3>
+            <div class="muted">Latest: <span id="cpiLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="cpiChart"></canvas></div>
         </article>
 
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>Unemployment Rate (%)</h3>
-              <div class="muted">Latest: <span id="uLatest">—</span></div>
-            </div>
+            <h3>Unemployment Rate (%)</h3>
+            <div class="muted">Latest: <span id="uLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="uChart"></canvas></div>
         </article>
 
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>Fed Funds Rate (%)</h3>
-              <div class="muted">Latest: <span id="ffLatest">—</span></div>
-            </div>
+            <h3>Fed Funds Rate (%)</h3>
+            <div class="muted">Latest: <span id="ffLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="ffChart"></canvas></div>
         </article>
 
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>Industrial Production (Index)</h3>
-              <div class="muted">Latest: <span id="ipLatest">—</span></div>
-            </div>
+            <h3>Industrial Production (Index)</h3>
+            <div class="muted">Latest: <span id="ipLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="ipChart"></canvas></div>
         </article>
 
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>Real GDP (YoY %)</h3>
-              <div class="muted">Latest: <span id="gdpLatest">—</span></div>
-            </div>
+            <h3>Real GDP (YoY %)</h3>
+            <div class="muted">Latest: <span id="gdpLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="gdpChart"></canvas></div>
         </article>
 
         <article class="card">
           <div class="cardHead">
-            <div>
-              <h3>Financial Conditions (NFCI)</h3>
-              <div class="muted">Latest: <span id="fciLatest">—</span></div>
-            </div>
+            <h3>Financial Conditions (NFCI)</h3>
+            <div class="muted">Latest: <span id="fciLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="fciChart"></canvas></div>
         </article>
@@ -199,7 +163,7 @@
     </section>
 
     <footer class="footer">
-      Built with macro signals + transparent uncertainty. Not financial advice. © <span id="yearNow"></span>
+      © <span id="yearNow"></span> • Built with transparent uncertainty
     </footer>
   </div>
 
