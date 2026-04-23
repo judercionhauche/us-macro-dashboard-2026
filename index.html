@@ -3,171 +3,266 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>US Macro Dashboard</title>
+  <meta name="color-scheme" content="dark" />
+  <title>US Macro Dashboard 2026</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
   <div class="shell">
+
+    <!-- HEADER -->
     <header class="top">
       <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
+        <div class="logo" aria-hidden="true">📈</div>
         <div class="brandText">
-          <div class="title">US Macro Dashboard</div>
-          <div class="subtitle">Forecasts with uncertainty • Scenarios • 2026 narrative</div>
+          <div class="title">US Macro Dashboard <span class="badge">2026</span></div>
+          <div class="subtitle">FRED real data · Monte Carlo uncertainty · Scenario analysis · AI narrative</div>
         </div>
       </div>
-
-      <div class="updated">
+      <div>
         <span class="pill">Updated <strong id="updatedLabel">—</strong></span>
       </div>
     </header>
 
-    <!-- Minimal hero -->
+    <!-- HERO -->
     <section class="hero">
       <div class="heroRow">
-        <h1 class="heroTitle">Macro forecasts</h1>
+        <div>
+          <h1 class="heroTitle">US Economic Forecast Engine</h1>
+          <p class="heroHint muted">Real FRED data · N=500 Monte Carlo paths · P10–P90 confidence bands</p>
+        </div>
         <div class="heroActions">
-          <button id="runBtn" class="btn primary">Run forecast</button>
+          <button id="runBtn" class="btn primary">▶ Run Forecast</button>
           <button id="resetBtn" class="btn ghost">Reset</button>
         </div>
       </div>
-      <p class="heroHint muted">
-        Ask in the box below. If horizon/window is missing, it asks once—then runs.
-      </p>
     </section>
 
+    <!-- RECESSION PROBABILITY METER -->
+    <div id="recessionSection" class="recessionSection" hidden>
+      <div class="recessionCard">
+        <div class="recLabel">12-Month Recession Probability</div>
+        <div class="recMeter">
+          <div class="recBar"><div class="recFill" id="recFill" style="width:0%"></div></div>
+          <div class="recPct" id="recPct">—%</div>
+        </div>
+        <div class="recDesc" id="recDesc">—</div>
+      </div>
+    </div>
+
+    <!-- LOADING BANNER -->
+    <div class="loadingBanner" id="loadingBanner">
+      <div class="spinner"></div>
+      <span>Fetching FRED data &amp; running Monte Carlo simulation…</span>
+    </div>
+
+    <!-- CHAT -->
     <section class="chat">
       <div class="chatHead">
-        <h2>Conversation</h2>
-        <p class="muted">Example: “Forecast the US economy in 2026.”</p>
+        <h2>Forecast Request</h2>
+        <p class="muted">Examples: "Forecast US economy 2026" · "Stagflation scenario 18m horizon" · "Tariff shock impact"</p>
       </div>
 
       <div id="knobPills" class="knobPills" aria-label="Current settings"></div>
 
       <div class="chatBox" id="chatBox" role="log" aria-live="polite">
         <div class="bubble assistant">
-          Ask what to forecast.<br />
-          <em>Forecast the US economy in 2026</em>
+          Ready. Click <strong>Run Forecast</strong> for an instant baseline, or type a scenario request below.
         </div>
       </div>
 
       <div class="chatInputRow">
-        <label class="srOnly" for="chatInput">Ask a question</label>
-        <input id="chatInput" type="text" placeholder="Type a request… (year/horizon/window optional)" />
-        <button id="sendBtn" class="btn">Send</button>
+        <label class="srOnly" for="chatInput">Forecast request</label>
+        <input id="chatInput" type="text"
+          placeholder="e.g. Forecast US economy with tariff shock scenario, 12m horizon" />
+        <button id="sendBtn" class="btn primary">Send</button>
       </div>
       <div class="footnote muted">For analysis only. Not financial advice.</div>
     </section>
 
+    <!-- RESULTS -->
     <section class="results" id="results" hidden>
-      <!-- Minimal lab -->
-      <div class="labCard" id="labCard">
-        <div class="labHead">
-          <div class="labTitle">Scenario Lab</div>
-          <button id="applyLabBtn" class="btn">Apply</button>
-        </div>
 
+      <!-- SCENARIO LAB -->
+      <div class="labCard">
+        <div class="labHead">
+          <div class="labTitle">⚗ Scenario Lab</div>
+          <button id="applyLabBtn" class="btn primary small">Apply &amp; Reforecast</button>
+        </div>
         <div class="labGrid">
           <div class="labControl">
             <label for="scenarioSelect">Scenario</label>
             <select id="scenarioSelect">
               <option value="baseline">Baseline</option>
-              <option value="soft_landing">Soft landing</option>
-              <option value="credit_tightening">Credit tightening</option>
+              <option value="soft_landing">Soft Landing</option>
               <option value="reacceleration">Re-acceleration</option>
+              <option value="credit_tightening">Credit Tightening</option>
+              <option value="stagflation">Stagflation</option>
+              <option value="tariff_shock">Tariff Shock</option>
             </select>
           </div>
-
           <div class="labControl">
-            <label for="nfciShock">NFCI shock (Δ)</label>
+            <label for="nfciShock">NFCI Shock (Δ)</label>
             <input id="nfciShock" type="range" min="-1.0" max="1.0" step="0.05" value="0" />
-            <div class="labRow"><span class="muted">Easier</span><strong id="nfciShockVal">0.00</strong><span class="muted">Tighter</span></div>
+            <div class="labRow">
+              <span class="muted">Easier</span>
+              <strong id="nfciShockVal">0.00</strong>
+              <span class="muted">Tighter</span>
+            </div>
           </div>
-
           <div class="labControl">
-            <label for="ffShock">Fed funds shock (pp, Δ)</label>
+            <label for="ffShock">Fed Funds Shock (pp, Δ)</label>
             <input id="ffShock" type="range" min="-2.0" max="2.0" step="0.10" value="0" />
-            <div class="labRow"><span class="muted">Cuts</span><strong id="ffShockVal">0.00</strong><span class="muted">Hikes</span></div>
+            <div class="labRow">
+              <span class="muted">Cuts</span>
+              <strong id="ffShockVal">0.00</strong>
+              <span class="muted">Hikes</span>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- KPIs -->
       <div class="kpis" aria-label="Key indicators">
-        <div class="kpi"><div class="kpiLabel">CPI YoY</div><div class="kpiVal" id="kpiCpi">—</div><div class="kpiMeta" id="kpiCpiMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Unemployment</div><div class="kpiVal" id="kpiU">—</div><div class="kpiMeta" id="kpiUMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Fed Funds</div><div class="kpiVal" id="kpiFf">—</div><div class="kpiMeta" id="kpiFfMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Ind. Production</div><div class="kpiVal" id="kpiIp">—</div><div class="kpiMeta" id="kpiIpMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">Real GDP YoY</div><div class="kpiVal" id="kpiGdp">—</div><div class="kpiMeta" id="kpiGdpMeta">—</div></div>
-        <div class="kpi"><div class="kpiLabel">NFCI</div><div class="kpiVal" id="kpiFci">—</div><div class="kpiMeta" id="kpiFciMeta">—</div></div>
+        <div class="kpi kpi-cpi">
+          <div class="kpiLabel">CPI Inflation YoY</div>
+          <div class="kpiVal" id="kpiCpi">—</div>
+          <div class="kpiChange" id="kpiCpiChange">—</div>
+          <div class="kpiMeta" id="kpiCpiMeta">latest</div>
+        </div>
+        <div class="kpi kpi-u">
+          <div class="kpiLabel">Unemployment</div>
+          <div class="kpiVal" id="kpiU">—</div>
+          <div class="kpiChange" id="kpiUChange">—</div>
+          <div class="kpiMeta" id="kpiUMeta">latest</div>
+        </div>
+        <div class="kpi kpi-ff">
+          <div class="kpiLabel">Fed Funds Rate</div>
+          <div class="kpiVal" id="kpiFf">—</div>
+          <div class="kpiChange" id="kpiFfChange">—</div>
+          <div class="kpiMeta" id="kpiFfMeta">latest</div>
+        </div>
+        <div class="kpi kpi-gdp">
+          <div class="kpiLabel">Real GDP YoY</div>
+          <div class="kpiVal" id="kpiGdp">—</div>
+          <div class="kpiChange" id="kpiGdpChange">—</div>
+          <div class="kpiMeta" id="kpiGdpMeta">latest</div>
+        </div>
+        <div class="kpi kpi-t10y2y">
+          <div class="kpiLabel">10Y–2Y Spread</div>
+          <div class="kpiVal" id="kpiT10y2y">—</div>
+          <div class="kpiChange" id="kpiT10y2yChange">—</div>
+          <div class="kpiMeta" id="kpiT10y2yMeta">latest · pp</div>
+        </div>
+        <div class="kpi kpi-fci">
+          <div class="kpiLabel">NFCI</div>
+          <div class="kpiVal" id="kpiFci">—</div>
+          <div class="kpiChange" id="kpiFciChange">—</div>
+          <div class="kpiMeta" id="kpiFciMeta">latest · 0=neutral</div>
+        </div>
+        <div class="kpi kpi-ip">
+          <div class="kpiLabel">Ind. Production</div>
+          <div class="kpiVal" id="kpiIp">—</div>
+          <div class="kpiChange" id="kpiIpChange">—</div>
+          <div class="kpiMeta" id="kpiIpMeta">latest · index</div>
+        </div>
+        <div class="kpi kpi-sent">
+          <div class="kpiLabel">Consumer Sentiment</div>
+          <div class="kpiVal" id="kpiSent">—</div>
+          <div class="kpiChange" id="kpiSentChange">—</div>
+          <div class="kpiMeta" id="kpiSentMeta">latest · UMich</div>
+        </div>
       </div>
 
-      <!-- Charts -->
+      <!-- CHARTS — 2 columns × 4 rows -->
       <div class="grid">
-        <article class="card">
+
+        <article class="card card-cpi">
           <div class="cardHead">
             <h3>CPI Inflation (YoY %)</h3>
-            <div class="muted">Latest: <span id="cpiLatest">—</span></div>
+            <div class="cardMeta muted">Latest: <span id="cpiLatest">—</span> | Fed target: 2%</div>
           </div>
           <div class="chartWrap"><canvas id="cpiChart"></canvas></div>
         </article>
 
-        <article class="card">
+        <article class="card card-u">
           <div class="cardHead">
             <h3>Unemployment Rate (%)</h3>
-            <div class="muted">Latest: <span id="uLatest">—</span></div>
+            <div class="cardMeta muted">Latest: <span id="uLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="uChart"></canvas></div>
         </article>
 
-        <article class="card">
+        <article class="card card-ff">
           <div class="cardHead">
             <h3>Fed Funds Rate (%)</h3>
-            <div class="muted">Latest: <span id="ffLatest">—</span></div>
+            <div class="cardMeta muted">Latest: <span id="ffLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="ffChart"></canvas></div>
         </article>
 
-        <article class="card">
-          <div class="cardHead">
-            <h3>Industrial Production (Index)</h3>
-            <div class="muted">Latest: <span id="ipLatest">—</span></div>
-          </div>
-          <div class="chartWrap"><canvas id="ipChart"></canvas></div>
-        </article>
-
-        <article class="card">
+        <article class="card card-gdp">
           <div class="cardHead">
             <h3>Real GDP (YoY %)</h3>
-            <div class="muted">Latest: <span id="gdpLatest">—</span></div>
+            <div class="cardMeta muted">Latest: <span id="gdpLatest">—</span></div>
           </div>
           <div class="chartWrap"><canvas id="gdpChart"></canvas></div>
         </article>
 
-        <article class="card">
+        <article class="card card-t10y2y">
+          <div class="cardHead">
+            <h3>Treasury Yield Curve (10Y–2Y)</h3>
+            <div class="cardMeta muted">Latest: <span id="t10y2yLatest">—</span>pp | &lt;0 = inverted</div>
+          </div>
+          <div class="chartWrap"><canvas id="t10y2yChart"></canvas></div>
+        </article>
+
+        <article class="card card-fci">
           <div class="cardHead">
             <h3>Financial Conditions (NFCI)</h3>
-            <div class="muted">Latest: <span id="fciLatest">—</span></div>
+            <div class="cardMeta muted">Latest: <span id="fciLatest">—</span> | 0 = neutral</div>
           </div>
           <div class="chartWrap"><canvas id="fciChart"></canvas></div>
         </article>
+
+        <article class="card card-ip">
+          <div class="cardHead">
+            <h3>Industrial Production (Index)</h3>
+            <div class="cardMeta muted">Latest: <span id="ipLatest">—</span></div>
+          </div>
+          <div class="chartWrap"><canvas id="ipChart"></canvas></div>
+        </article>
+
+        <article class="card card-sent">
+          <div class="cardHead">
+            <h3>Consumer Sentiment (UMich)</h3>
+            <div class="cardMeta muted">Latest: <span id="umcsentLatest">—</span></div>
+          </div>
+          <div class="chartWrap"><canvas id="umcsentChart"></canvas></div>
+        </article>
+
       </div>
 
+      <!-- NARRATIVE -->
       <article class="card narrative">
         <div class="cardHead">
-          <h3>2026 Narrative</h3>
+          <h3>Economic Analysis</h3>
+          <div class="muted" id="narrativeSource">—</div>
         </div>
-        <pre id="narrativeText"></pre>
+        <div id="narrativeText" class="narrativeContent"></div>
       </article>
+
     </section>
 
     <footer class="footer">
-      © <span id="yearNow"></span> • Built with transparent uncertainty
+      <div>© <span id="yearNow"></span> US Macro Dashboard</div>
+      <div class="muted">FRED data · Monte Carlo N=500 · For analysis only, not financial advice</div>
     </footer>
   </div>
 
   <script src="chart.umd.js"></script>
+  <script src="marked.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
