@@ -11,5 +11,6 @@
   "description": "",
   "devDependencies": {
     "wrangler": "^4.59.2"
-  }
+  },
+  "type": "module"
 }
