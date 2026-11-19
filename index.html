@@ -25,6 +25,132 @@
       </div>
     </header>
 
+    <!-- AI ECONOMIC POLICY LAB (main experience) -->
+    <section class="policyLab" id="policyLab">
+      <div class="plIntro">
+        <h1>AI Economic Policy Lab</h1>
+        <p>A place where AI economists debate US monetary policy and explore its possible economic effects.</p>
+      </div>
+
+      <!-- BEFORE: choose a scenario and start -->
+      <div class="plCard" id="plSetup">
+        <label class="plLabel" for="plScenario">Economic scenario</label>
+        <select id="plScenario" class="plSelect">
+          <option value="">Today's economy (latest data)</option>
+          <option value="2023-07-20">Mid-2023 · rates at their peak</option>
+          <option value="2022-06-10">June 2022 · inflation surge</option>
+          <option value="2020-07-20">July 2020 · pandemic recession</option>
+          <option value="2019-07-25">July 2019 · slowing growth</option>
+          <option value="2008-10-20">October 2008 · financial crisis</option>
+          <option value="custom">Custom date (set in Advanced settings)</option>
+        </select>
+        <p class="muted small" id="plScenarioNote"></p>
+        <div id="plConditions" class="plConditions"></div>
+        <div class="plStartRow">
+          <button id="vdStart" class="btn primary big">Start Live Debate</button>
+          <span class="muted small">About 2 minutes · audio · a simulation, not real Fed policy</span>
+        </div>
+
+        <details class="plAdvanced">
+          <summary>Advanced settings</summary>
+          <div class="labGrid">
+            <div class="labControl">
+              <label for="labAsOf">Custom date (economic conditions as of)</label>
+              <input id="labAsOf" type="date" min="1995-01-01" />
+              <div class="muted small">Replays only the data published before that date.</div>
+            </div>
+            <div class="labControl">
+              <label for="vdLength">Debate length</label>
+              <select id="vdLength"><option value="2" selected>About 2 minutes</option><option value="4">About 4 minutes</option><option value="6">About 6 minutes</option></select>
+            </div>
+            <div class="labControl">
+              <label for="vdEngine">Voices</label>
+              <select id="vdEngine"><option value="openai">Natural AI voices (≈ $0.10 per 2-min debate)</option><option value="browser">Browser voices (free)</option></select>
+            </div>
+            <div class="labControl">
+              <label for="labMode">Agents</label>
+              <select id="labMode"><option value="auto">Live AI if configured, else demo</option><option value="demo">Demo (rule-based, free)</option></select>
+            </div>
+            <div class="labControl">
+              <label for="labHold">Rate change lasts</label>
+              <select id="labHold"><option value="3">3 months</option><option value="6" selected>6 months</option><option value="12">12 months</option></select>
+            </div>
+            <div class="labControl">
+              <label>Text-only meeting</label>
+              <button id="labRunBtn" class="btn ghost small">Run without audio</button>
+              <div class="muted small">Same committee and results, no voices.</div>
+            </div>
+          </div>
+          <div class="labStatus" id="labStatus"></div>
+        </details>
+      </div>
+
+      <!-- DURING: live debate -->
+      <div class="plCard plLive" id="vdPanelBody" hidden>
+        <div class="vdTop">
+          <div class="vdNow idle" id="vdNow">
+            <span class="vdBars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+            <div><div class="vdNowName" id="vdNowName">—</div><div class="muted small" id="vdNowRole"></div></div>
+          </div>
+          <div class="vdControls">
+            <button id="vdPause" class="btn ghost small" disabled>Pause</button>
+            <button id="vdMute" class="btn ghost small">Mute</button>
+            <input id="vdVolume" type="range" min="0" max="1" step="0.05" value="0.9" aria-label="Volume" />
+            <button id="vdStop" class="btn ghost small" disabled>Stop</button>
+          </div>
+        </div>
+        <div class="vdProgress"><div class="vdProgressBar"><div id="vdProgressFill"></div></div><span class="muted small" id="vdProgressText"></span></div>
+        <div class="vdStatusRow"><span id="vdStatus" class="vdStatus">Idle</span><span id="vdCost" class="muted small"></span></div>
+        <div class="vdStage" id="vdStage"></div>
+        <div class="vdTranscript" id="vdTranscript" role="log" aria-live="polite"></div>
+      </div>
+
+      <!-- AFTER: results -->
+      <div id="labBody" hidden>
+        <h2 class="plH2">Economic Outlook After the Debate</h2>
+
+        <div class="plCard">
+          <h3 class="plH3">Committee decision</h3>
+          <div class="labDecision" id="labDecision"></div>
+          <div id="plReason" class="plReason"></div>
+        </div>
+
+        <div class="plCard">
+          <div class="plCardHead">
+            <h3 class="plH3">Economic outlook</h3>
+            <div class="labControl inline"><label for="labCompare">Compare with</label>
+              <select id="labCompare"><option value="-50">Cut 50 bp</option><option value="-25">Cut 25 bp</option><option value="0">Hold</option><option value="25">Raise 25 bp</option><option value="50">Raise 50 bp</option></select></div>
+          </div>
+          <p class="muted small" id="labChartNote"></p>
+          <div class="plCharts">
+            <div><h4>Inflation (core PCE, %)</h4><div class="chartWrap"><canvas id="labInflChart" aria-label="Core PCE inflation forecast"></canvas></div></div>
+            <div><h4>Unemployment rate (%)</h4><div class="chartWrap"><canvas id="labUChart" aria-label="Unemployment forecast"></canvas></div></div>
+            <div><h4>GDP growth (%, estimated from industrial production)</h4><div class="chartWrap"><canvas id="labGdpChart" aria-label="GDP growth forecast"></canvas></div></div>
+            <div><h4>Federal funds rate (%)</h4><div class="chartWrap"><canvas id="labFfChart" aria-label="Fed funds rate forecast"></canvas></div></div>
+          </div>
+        </div>
+
+        <div class="plCard">
+          <h3 class="plH3">Key takeaways</h3>
+          <div id="plTakeaways" class="plTakeaways"></div>
+        </div>
+
+        <details class="plCard plDetails">
+          <summary>Research details — transcript, votes, evidence checks, assumptions</summary>
+          <h4>Economic conditions used</h4><div class="labTiles" id="labConditions"></div>
+          <h4>The committee: initial view → after debate → vote</h4><div class="memberGrid" id="labMembers"></div>
+          <h4>Committee record (text meeting)</h4><div class="transcript" id="labTranscript"></div>
+          <h4>All policy options compared</h4><div id="labScenarioTable"></div>
+          <h4>Does AI debate make a difference?</h4><div id="labDebate"></div>
+          <h4>Evidence and assumptions</h4><div id="labEvidence"></div>
+          <h4>Data sources and citations</h4><div id="labSources"></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ADVANCED ECONOMIC TOOLS (original forecast engine, unchanged) -->
+    <details class="advTools" id="advTools">
+      <summary>Advanced economic tools — macro forecast explorer, scenario lab and 8 indicators</summary>
     <!-- HERO -->
     <section class="hero">
       <div class="heroRow">
@@ -119,6 +245,7 @@
               <strong id="ffShockVal">0.00</strong>
               <span class="muted">Hikes</span>
             </div>
+            <div class="muted small">Illustrative: uses hand-set coefficients. For estimated effects, use the AI Economic Policy Lab below.</div>
           </div>
         </div>
       </div>
@@ -255,6 +382,8 @@
 
     </section>
 
+    </details>
+
     <footer class="footer">
       <div>© <span id="yearNow"></span> US Macro Dashboard</div>
       <div class="muted">FRED data · Monte Carlo N=500 · For analysis only, not financial advice</div>
@@ -264,5 +393,7 @@
   <script src="chart.umd.js"></script>
   <script src="marked.min.js"></script>
   <script src="app.js"></script>
+  <script src="lab.js"></script>
+  <script src="voice-debate.js"></script>
 </body>
 </html>

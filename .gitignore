@@ -1,0 +1,5 @@
+
+# local secrets
+.dev.vars
+worker/.dev.vars
+worker/.cache/

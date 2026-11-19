@@ -1,6 +1,12 @@
 // worker.js v2 — Enhanced: yield curve, consumer sentiment, recession probability,
 // stagflation + tariff_shock scenarios, AI narrative with GPT fallback, mean reversion
 
+import { buildLabModel } from "./lab/model.js";
+import { runMeeting, rulePrescriptions } from "./lab/committee.js";
+import { voiceConfig, voiceTurn, voiceTTS, voiceFinals, VOICES } from "./lab/voice.js";
+import { getSnapshot } from "./lab/snapshot.js";
+import { budgetStatus } from "./lab/budget.js";
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -13,7 +19,8 @@ export default {
       if (url.pathname === "/meta") {
         return json({
           ok: true, service: "us-macro-dashboard", version: "2.0",
-          endpoints: ["/forecast"],
+          endpoints: ["/forecast", "/lab/model", "/lab/meeting", "/lab/snapshot", "/lab/budget", "/lab/voice/config", "/lab/voice/turn", "/lab/voice/tts"],
+          lab_live_agents: !!(env.ANTHROPIC_API_KEY || env.OPENAI_API_KEY),
           ai_narrative: !!env.OPENAI_API_KEY
         }, 200);
       }
@@ -90,6 +97,44 @@ export default {
         }, 200);
       }
 
+      if (url.pathname === "/lab/snapshot") {
+        const asOf = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get("asOf") || "") ? url.searchParams.get("asOf") : null;
+        return json({ snapshot: await getSnapshot(env, { asOf }) }, 200);
+      }
+      if (url.pathname === "/lab/budget") return json(await budgetStatus(env), 200);
+      if (url.pathname === "/lab/voice/config") {
+        return json({ ...voiceConfig(env), voices: Object.fromEntries(Object.entries(VOICES).map(([k, v]) => [k, { voice: v.voice, browser: v.browser }])) }, 200);
+      }
+      if (url.pathname === "/lab/voice/turn" && request.method === "POST") {
+        try { return json(await voiceTurn(env, await request.json()), 200); }
+        catch (e) { return json({ error: e.message || String(e) }, e.status || 500); }
+      }
+      if (url.pathname === "/lab/voice/finals" && request.method === "POST") {
+        return json(await voiceFinals(env, await request.json()), 200);
+      }
+      if (url.pathname === "/lab/voice/tts" && request.method === "POST") {
+        const body = await request.json();
+        try {
+          const r = await voiceTTS(env, body);
+          return new Response(r.audio, { status: 200, headers: { ...corsHeaders(), "Content-Type": "audio/mpeg",
+            "X-Lab-Cached": String(r.cached), "X-Lab-Spend-Debate": String(r.spend.debateUsd), "X-Lab-Spend-Total": String(r.spend.totalUsd) } });
+        } catch (e) { return json({ error: e.message || String(e) }, e.status || 500); }
+      }
+
+      if (url.pathname === "/lab/model" || (url.pathname === "/lab/meeting" && request.method === "POST")) {
+        const body = request.method === "POST" ? await request.json().catch(() => ({})) : Object.fromEntries(url.searchParams);
+        const asOf = /^\d{4}-\d{2}-\d{2}$/.test(String(body.asOf || "")) ? String(body.asOf) : null;
+        const holdMonths = clampInt(body.holdMonths ?? 6, 1, 12);
+        const [model, snapshot] = await Promise.all([
+          buildLabModel(env, { asOf, holdMonths }),
+          getSnapshot(env, { asOf }).catch((e) => ({ failed: e.message })),
+        ]);
+        const snap = snapshot.failed ? null : snapshot;
+        if (url.pathname === "/lab/model") return json({ model, rules: rulePrescriptions(model, snap), snapshot: snap, snapshotError: snapshot.failed || null }, 200);
+        const meeting = await runMeeting(env, model, { mode: body.mode === "demo" ? "demo" : "auto", snapshot: snap });
+        return json({ model, meeting, snapshot: snap, snapshotError: snapshot.failed || null }, 200);
+      }
+
       return json({ error: "Not found" }, 404);
     } catch (err) {
       return json({ error: err.message || String(err) }, 500);
@@ -102,7 +147,8 @@ function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Expose-Headers": "X-Lab-Cached, X-Lab-Spend-Debate, X-Lab-Spend-Total"
   };
 }
 
