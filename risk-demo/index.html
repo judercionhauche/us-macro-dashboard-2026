@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" data-risk-api="https://us-econ-forecast-worker.judercionhauche.workers.dev/risk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>US Macro Dashboard 2026</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="shell">
+
+    <!-- HEADER -->
+    <header class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">📈</div>
+        <div class="brandText">
+          <div class="title">US Macro Dashboard <span class="badge">2026</span></div>
+          <div class="subtitle">FRED real data · Monte Carlo uncertainty · Scenario analysis · AI narrative</div>
+        </div>
+      </div>
+      <div>
+        <span class="pill">Live Risk Lab</span>
+      </div>
+    </header>
+
+    <nav class="dashboardViews" aria-label="Dashboard views">
+      <a href="./" id="riskViewLink">S&amp;P 500 Risk Lab</a>
+      <a href="../" id="macroViewLink">Macro Dashboard</a>
+    <a href="?watch=recording">Watch the recording</a></nav>
+
+    <section class="policyLab riskLab" id="riskLab" hidden>
+
+      <div class="plIntro"><span>BUS 244A / Milestone 2</span><h1>S&P 500 Risk Lab</h1><p>Explore historical financial distress and watch specialist agents debate the evidence available at a selected cutoff.</p></div>
+      <section class="summary" id="summary" aria-label="Study results"></section>
+      <section class="grid">
+        <article class="plCard">
+          <h2>Company evidence</h2>
+          <div class="controls">
+            <label>Company <select class="plSelect" id="company"></select></label>
+            <label>Cutoff <select class="plSelect" id="cutoff"></select></label>
+            <label>Mode <select class="plSelect" id="riskMode">
+              <option value="research">Research · anonymous, scaled</option>
+              <option value="demo">Historical demo · real values</option>
+              <option value="today">Today · latest filings</option>
+            </select></label>
+          </div>
+          <p id="sector"></p>
+          <div class="chart"><canvas id="history" aria-label="Financial ratios through the selected cutoff" role="img"></canvas></div>
+        </article>
+        <article class="plCard">
+          <h2>Watch a live debate</h2>
+          <p>Listen as four analysts debate the company’s SEC financials, cast their votes, and hand the final decision to a moderator.</p>
+          <div class="controls">
+            <button class="btn primary" id="riskRun" disabled>Start voice debate</button>
+            <button class="btn" id="riskPause" hidden>Pause audio</button>
+            <button class="btn" id="riskStop" hidden>Stop debate</button>
+          </div>
+          <p id="status" role="status">Loading study…</p>
+          <div class="vdStage" id="riskStage" aria-label="Debate participants" hidden></div>
+          <progress id="riskProgress" max="9" value="0" aria-label="Debate turns completed" hidden></progress>
+          <div class="vdTranscript" id="transcript" tabindex="0" aria-label="Debate transcript"></div>
+          <div id="conclusion" hidden></div>
+          <details id="evidence" hidden><summary>Inspect evidence IDs</summary><dl id="facts"></dl></details>
+        </article>
+      </section>
+      <section class="plCard" id="riskDebrief" hidden>
+        <h2>Debate analysis</h2>
+        <p id="riskDebriefSummary"></p>
+        <div id="riskSpeakingTime" aria-label="Speaking time by analyst"></div>
+        <p id="outcome"></p>
+        <div class="chart"><canvas id="riskVoteChart" aria-label="Opening estimates and final risk votes" role="img"></canvas></div>
+        <div id="riskDisagreements"></div>
+        <p class="muted">This demonstration uses numeric evidence. The Milestone 2 filing-text experiment is evaluated separately.</p>
+      </section>
+      <section class="grid lower">
+        <article class="plCard">
+          <h2>Distress across the sample</h2>
+          <figure><img src="results/figures/fig2.png" alt="Distress rates by quarterly cutoff and company counts and distress rates by sector"></figure>
+        </article>
+        <article class="plCard">
+          <h2>What the study shows</h2>
+          <p id="finding"></p>
+          <p>The SEC filing-text pilot returned HTTP 403. The research comparison between text, single-agent, no-debate, and debate arms remains unevaluated.</p>
+        </article>
+      </section>
+    </section>
+
+    <div id="macroDashboard" hidden></div>
+    <footer class="footer">
+      <div>© 2026 US Macro Dashboard</div>
+      <div class="muted">FRED data · Monte Carlo N=500 · For analysis only, not financial advice</div>
+    </footer>
+  </div>
+
+  <script src="chart.umd.js"></script>
+  <script src="risk.js"></script>
+</body>
+</html>
