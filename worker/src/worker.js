@@ -6,10 +6,13 @@ import { runMeeting, rulePrescriptions } from "./lab/committee.js";
 import { voiceConfig, voiceTurn, voiceTTS, voiceFinals, VOICES } from "./lab/voice.js";
 import { getSnapshot } from "./lab/snapshot.js";
 import { budgetStatus } from "./lab/budget.js";
+import { riskRelay } from "./risk/relay.js";
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/risk/")) return riskRelay(request, env);
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders() });

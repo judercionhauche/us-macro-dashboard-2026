@@ -3,3 +3,11 @@
 .dev.vars
 worker/.dev.vars
 worker/.cache/
+
+# Local research environment and resumable call lock
+.venv/
+__pycache__/
+results/llm_calls.lock
+results/demo_llm_calls.jsonl
+results/demo_llm_calls.lock
+results/demo_speech_calls.jsonl

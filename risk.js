@@ -1,0 +1,459 @@
+(() => {
+"use strict";
+const query = new URLSearchParams(location.search);
+const publicApi = document.documentElement.dataset.riskApi;
+const access = new URLSearchParams(location.hash.slice(1)).get("access") || "";
+const replay = document.documentElement.dataset.debate === "replay" ||
+  Boolean(publicApi && query.get("watch") === "recording");
+const api = (local, hosted) => publicApi ? publicApi + hosted : local;
+const requested = replay || publicApi ? "risk" : query.get("view");
+const riskLink = document.getElementById("riskViewLink");
+const macroLink = document.getElementById("macroViewLink");
+for (const [link, view] of [[riskLink, "risk"], [macroLink, "macro"]]) {
+  const params = new URLSearchParams(query);
+  params.set("view", view);
+  if (!replay && !publicApi) link.href = "?" + params;
+}
+if (requested !== "risk") {
+  macroLink.setAttribute("aria-current", "page");
+  return;
+}
+riskLink.setAttribute("aria-current", "page");
+document.getElementById("macroDashboard").hidden = true;
+document.getElementById("riskLab").hidden = false;
+document.title = "S&P 500 Risk Lab";
+
+const el = id => document.getElementById(id);
+let study, chart, visibleHistory = [];
+const company = el("company"), cutoff = el("cutoff"), run = el("riskRun");
+const status = el("status"), transcript = el("transcript"), conclusion = el("conclusion");
+const stage = el("riskStage"), progress = el("riskProgress");
+const roles = ["Profitability", "Cash Flow & Debt", "Industry", "Filing Narrative", "moderator"];
+const mode = el("riskMode");
+const pause = el("riskPause"), stop = el("riskStop"), debrief = el("riskDebrief");
+let voteChart, audio, controller, paused = false, resumePlayback;
+const pct = value => (value * 100).toFixed(1) + "%";
+
+function option(select, value, text = value) {
+  select.add(new Option(text, value));
+}
+
+function rows() {
+  return study.history.filter(row => row.cik === Number(company.value));
+}
+
+function selectCompany() {
+  cutoff.replaceChildren();
+  for (const row of rows().slice().reverse()) option(cutoff, row.cutoff);
+  showCase();
+}
+
+function showCase() {
+  const selected = study.sample.find(row => row.cik === Number(company.value));
+  const history = rows().filter(row => row.cutoff <= cutoff.value);
+  const last = history.at(-1);
+  el("sector").textContent = selected.sector;
+  el("outcome").textContent = last?.positive == null
+    ? "A frozen outcome is unavailable at this cutoff."
+    : last.positive ? "Observed outcome: distress event within four quarters."
+                    : "Observed outcome: no qualifying distress event within four quarters.";
+  cutoff.disabled = mode.value === "today";
+  visibleHistory = mode.value === "today" ? rows() : history;
+  drawHistory(visibleHistory);
+  transcript.replaceChildren();
+  stage.hidden = progress.hidden = true;
+  conclusion.hidden = debrief.hidden = true;
+  el("evidence").hidden = true;
+  status.textContent = replay ? "Ready to play the recorded debate." : "Ready to run the selected case.";
+  if (!replay && mode.value === "today") {
+    const selectedCik = company.value;
+    fetch(api("/api/current-history", "/history") + "?cik=" + encodeURIComponent(selectedCik))
+      .then(response => response.ok ? response.json() : [])
+      .then(history => {
+        if (history.length && mode.value === "today" && company.value === selectedCik && !run.disabled) {
+          visibleHistory = history;
+          drawHistory(history);
+        }
+      }).catch(() => {});
+  }
+}
+
+function drawHistory(history, futureStart) {
+  if (chart) chart.destroy();
+  chart = new Chart(el("history"), {
+    type: "line",
+    data: {
+      labels: history.map(row => row.cutoff),
+      datasets: [
+        ["Net margin", "net_margin", "#157675"],
+        ["Debt / assets", "debt_assets", "#725fa7"],
+        ["Operating cash flow margin", "ocf_margin", "#bb661a"]
+      ].map(([label, key, borderColor]) => ({
+        label, borderColor, data: history.map(row => row[key] == null ? null : row[key] * 100),
+        pointRadius: 2
+      }))
+    },
+    plugins: futureStart ? [{
+      id: "afterVerdict",
+      beforeDraw(instance) {
+        const {ctx, chartArea, scales} = instance;
+        if (!chartArea) return;
+        const left = scales.x.getPixelForValue(futureStart - .5);
+        ctx.save();
+        ctx.fillStyle = "rgba(46, 138, 121, .15)";
+        ctx.fillRect(left, chartArea.top, chartArea.right - left, chartArea.bottom - chartArea.top);
+        ctx.restore();
+      }
+    }] : [],
+    options: {responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v => v + "%"}}}}
+  });
+}
+
+function text(parent, tag, value, className) {
+  const node = document.createElement(tag);
+  node.textContent = value;
+  if (className) node.className = className;
+  parent.append(node);
+  return node;
+}
+
+function display(event) {
+  if (event.type === "start") {
+    status.textContent = (replay ? "Recorded debate generated with " : "Debate running with ") + event.model + ".";
+    if (event.history) {
+      visibleHistory = event.history;
+      drawHistory(visibleHistory);
+    }
+    el("riskProgress").max = 13;
+    stage.replaceChildren();
+    for (const role of roles) {
+      const card = text(stage, "div", "", "vdAgent");
+      card.dataset.role = role;
+      text(card, "span", role === "moderator" ? "Moderator" : role, "vdAgentName");
+      text(card, "span", "Waiting", "vdAgentPos");
+    }
+    progress.value = 0;
+    stage.hidden = progress.hidden = false;
+    const facts = el("facts");
+    facts.replaceChildren();
+    for (const [id, value] of Object.entries(event.evidence)) {
+      text(facts, "dt", "[" + id + "]");
+      text(facts, "dd", value);
+    }
+    if (event.filing_url) {
+      const link = text(facts, "a", "Filing source");
+      link.href = event.filing_url;
+      link.target = "_blank";
+      link.rel = "noopener";
+    }
+    el("evidence").hidden = false;
+  } else if (event.type === "turn" || event.type === "narration") {
+    const turn = text(transcript, "div", "", "turn");
+    const answer = event.response;
+    if (answer) {
+      progress.value += 1;
+      for (const entry of event.tool_calls || []) {
+        const result = entry.result;
+        const facts = el("facts");
+        text(facts, "dt", result.evidence_id ? "[" + result.evidence_id + "] " + entry.tool : entry.tool);
+        text(facts, "dd", result.plain_meaning +
+          (result.value == null ? "" : " " + (typeof result.value === "string"
+            ? result.value : JSON.stringify(result.value))));
+      }
+    }
+    for (const card of stage.children) {
+      const speaking = card.dataset.role === event.agent;
+      card.classList.toggle("speaking", speaking);
+      if (speaking && answer) {
+        card.lastElementChild.textContent = (event.round === 1 ? "Opening " : "Vote ") + pct(answer.p);
+      }
+    }
+    const roundLabel = event.round === 1 ? "Opening" : event.round === 2 ? "Rebuttal" : event.round === 3 ? "Final vote" : "Verdict";
+    const speaker = event.agent === "moderator" ? "Moderator" : event.agent;
+    const heading = answer
+      ? speaker + " · " + roundLabel + " · " + pct(answer.p) + " · " + answer.stance
+        + (answer.responds_to ? " · responds to " + answer.responds_to : "")
+      : event.title;
+    text(turn, "strong", heading);
+    text(turn, "p", event.spoken, "riskSpeech");
+    if (answer) {
+      const citations = text(turn, "div", "", "riskCitations");
+      for (const id of new Set(answer.claims.flatMap(claim => claim.ids))) {
+        text(citations, "span", id.startsWith("[") ? id : "[" + id + "]");
+      }
+    }
+    transcript.scrollTop = transcript.scrollHeight;
+  } else if (event.type === "result") {
+    const {E, D} = event.result.arms;
+    conclusion.replaceChildren();
+    text(conclusion, "strong", "Moderator’s deciding vote · " + D.label + " risk · " + pct(D.p));
+    text(conclusion, "p", "Independent specialist average: " + pct(E.p) + ".");
+    text(conclusion, "p", D.say);
+    conclusion.hidden = false;
+    for (const card of stage.children) card.classList.remove("speaking");
+    el("outcome").hidden = event.mode !== "demo";
+    if (event.mode === "today") {
+      el("outcome").hidden = false;
+      el("outcome").textContent = "The outcome for the coming year is still unknown.";
+    }
+    if (event.observed?.length) {
+      drawHistory([...visibleHistory, ...event.observed], visibleHistory.length);
+      text(conclusion, "p", "The shaded chart area shows what happened after the cutoff.");
+    }
+    showDebrief(event.result);
+    status.textContent = "Voice debate complete.";
+  } else if (event.type === "error") {
+    throw new Error(event.error);
+  }
+}
+
+function showDebrief(result) {
+  const {E, D} = result.arms;
+  const movement = (D.p - E.p) * 100;
+  const checks = Object.values(result.referee).flat();
+  const supported = checks.filter(check => check === "supported").length;
+  const ballots = {High:0, Medium:0, Low:0};
+  for (const {p} of Object.values(result.round_two)) ballots[p >= .5 ? "High" : p >= .2 ? "Medium" : "Low"]++;
+  const comparison = Math.abs(movement) < 0.05 ? "matched the opening specialist average"
+    : "was " + Math.abs(movement).toFixed(1) + " percentage points " +
+      (movement > 0 ? "above" : "below") + " the opening specialist average";
+  el("riskDebriefSummary").textContent =
+    "The moderator’s " + pct(D.p) + " " + D.label.toLowerCase() + "-risk vote " +
+    comparison + ". The evidence check supported " + supported + " of " + checks.length +
+    " opening claims. Analyst votes: " + ballots.High + " high, " + ballots.Medium +
+    " medium, " + ballots.Low + " low.";
+  const timing = el("riskSpeakingTime");
+  timing.replaceChildren();
+  const seconds = result.speech_seconds || {};
+  const max = Math.max(1, ...roles.slice(0,4).map(role => seconds[role] || 0));
+  for (const role of roles.slice(0,4)) {
+    const line = text(timing, "label", role + " · " + (seconds[role] || 0).toFixed(0) + " sec");
+    const meter = text(line, "progress", "");
+    meter.max = max;
+    meter.value = seconds[role] || 0;
+  }
+  const disagreements = el("riskDisagreements");
+  disagreements.replaceChildren();
+  if (D.open_disagreements) {
+    text(disagreements, "h3", "Unresolved points");
+    text(disagreements, "p", D.open_disagreements);
+  }
+  debrief.hidden = false;
+  if (voteChart) voteChart.destroy();
+  voteChart = new Chart(el("riskVoteChart"), {
+    type: "bar",
+    data: {
+      labels: roles.map(role => role === "moderator" ? "Moderator" : role),
+      datasets: [
+        {label:"Opening estimate", backgroundColor:"#5e7790",
+         data:roles.map(role => result.round_one[role]?.p * 100 || (role === "moderator" ? null : 0))},
+        {label:"Final vote", backgroundColor:"#0d9488",
+         data:roles.map(role => 100 * (role === "moderator" ? D.p : result.round_two[role].p))}
+      ]
+    },
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{min:0, max:100,
+      ticks:{callback:value => value + "%"}}}}
+  });
+}
+
+function browserVoice(event, signal) {
+  return new Promise((resolve, reject) => {
+    if (!window.speechSynthesis) {
+      reject(new Error(event.audio_error || "No audio is available for this turn."));
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance(event.spoken);
+    const index = roles.indexOf(event.agent);
+    const voices = speechSynthesis.getVoices().filter(voice => /^en/i.test(voice.lang));
+    if (voices.length) utterance.voice = voices[index % voices.length];
+    utterance.pitch = [1, 1.15, .88, 1.05, .8][index];
+    utterance.rate = [1, .97, .92, 1.05, .95][index];
+    let timer, elapsed = 0;
+    const ended = () => finish();
+    const fail = message => finish(new Error(message));
+    const aborted = () => { speechSynthesis.cancel(); finish(signal.reason); };
+    const finish = error => {
+      clearInterval(timer);
+      signal.removeEventListener("abort", aborted);
+      utterance.onend = utterance.onerror = null;
+      if (error) reject(error); else resolve();
+    };
+    utterance.onend = ended;
+    utterance.onerror = () => fail(event.audio_error || "The browser could not play this speaker.");
+    timer = setInterval(() => {
+      if (paused) return;
+      elapsed += 1000;
+      if (elapsed >= Math.max(30000, event.spoken.length * 160)) {
+        finish(new Error("Browser voice did not finish. Check audio output and try again."));
+        speechSynthesis.cancel();
+      }
+    }, 1000);
+    signal.addEventListener("abort", aborted, {once:true});
+    speechSynthesis.speak(utterance);
+  });
+}
+
+async function playTurn(event, signal) {
+  signal.throwIfAborted();
+  if (paused) await new Promise(resolve => { resumePlayback = resolve; });
+  signal.throwIfAborted();
+  display(event);
+  const speaker = event.agent === "moderator" ? "Moderator" : event.agent + " analyst";
+  status.textContent = speaker + " speaking";
+  if ((event.audio || event.audio_url) && audio) {
+    let bytes;
+    if (event.audio_url) {
+      const response = await fetch(event.audio_url, {signal});
+      if (!response.ok) throw new Error("Could not load this speaker’s recording.");
+      bytes = await response.arrayBuffer();
+    } else {
+      bytes = Uint8Array.from(atob(event.audio), character => character.charCodeAt(0)).buffer;
+    }
+    const clip = await audio.decodeAudioData(bytes).catch(() => null);
+    signal.throwIfAborted();
+    if (clip) {
+      await new Promise((resolve, reject) => {
+        const source = audio.createBufferSource();
+        source.buffer = clip;
+        source.connect(audio.destination);
+        const abort = () => { source.stop(); reject(signal.reason); };
+        source.onended = () => {
+          signal.removeEventListener("abort", abort);
+          source.disconnect();
+          resolve();
+        };
+        signal.addEventListener("abort", abort, {once:true});
+        source.start();
+      });
+      return;
+    }
+  }
+  status.textContent = speaker + " speaking (browser voice)";
+  await browserVoice(event, signal);
+}
+
+pause.addEventListener("click", () => {
+  paused = !paused;
+  pause.textContent = paused ? "Resume audio" : "Pause audio";
+  if (paused) {
+    audio?.suspend().catch(() => {});
+    window.speechSynthesis?.pause();
+  } else {
+    audio?.resume().catch(() => {});
+    window.speechSynthesis?.resume();
+    resumePlayback?.();
+    resumePlayback = undefined;
+  }
+});
+stop.addEventListener("click", () => {
+  controller?.abort();
+  resumePlayback?.();
+  resumePlayback = undefined;
+});
+
+async function debate() {
+  run.disabled = company.disabled = cutoff.disabled = mode.disabled = true;
+  pause.hidden = stop.hidden = false;
+  pause.textContent = "Pause audio";
+  paused = false;
+  controller = new AbortController();
+  const signal = controller.signal;
+  const Audio = window.AudioContext || window.webkitAudioContext;
+  if (Audio) {
+    try {
+      audio = new Audio();
+      // Invoke resume from the Start click before awaiting network data.
+      audio.resume().catch(() => {});
+    } catch {
+      audio = undefined;
+    }
+  }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  transcript.replaceChildren();
+  conclusion.hidden = el("evidence").hidden = stage.hidden = progress.hidden = debrief.hidden = true;
+  status.textContent = replay ? "Loading the recorded debate…" : "Preparing cutoff-safe evidence…";
+  try {
+    const response = replay ? await fetch("replay/" + mode.value + "/events.jsonl", {signal}) : await fetch(api("/api/debate", "/debate"), {
+      signal, method:"POST", headers:{"Content-Type":"application/json", ...(publicApi ? {"X-Risk-Access":access} : {"X-Risk-Demo":"local"})},
+      body:JSON.stringify({cik:Number(company.value), cutoff:cutoff.value, mode:mode.value})
+    });
+    if (!response.ok) throw new Error(replay ? "Could not load the recording." : (await response.json()).error);
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = "", completed = false;
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += value;
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        const event = JSON.parse(line);
+        if (event.type === "turn" || event.type === "narration") {
+          await playTurn(event, signal);
+          for (const card of stage.children) card.classList.remove("speaking");
+          status.textContent = "Preparing the next turn…";
+        } else {
+          display(event);
+        }
+        completed ||= event.type === "result";
+      }
+    }
+    if (!completed) throw new Error("The connection ended before the moderator returned.");
+  } catch (error) {
+    status.textContent = signal.aborted ? "Debate stopped." : "Debate unavailable. " + error.message;
+    controller.abort();
+  } finally {
+    for (const card of stage.children) card.classList.remove("speaking");
+    if (audio) await audio.close().catch(() => {});
+    audio = undefined;
+    if (paused) window.speechSynthesis?.resume();
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    pause.hidden = stop.hidden = true;
+    run.disabled = company.disabled = mode.disabled = false;
+    cutoff.disabled = mode.value === "today";
+  }
+}
+
+async function init() {
+  const response = await fetch(replay ? "replay/study.json" : api("/api/study", "/study"));
+  if (!response.ok) throw new Error("Could not load study data.");
+  study = await response.json();
+  const metrics = study.metrics;
+  const cards = [
+    [study.company_count ?? study.sample.length, "companies sampled"],
+    [study.total.toLocaleString(), "frozen observations"],
+    [pct(study.positive / study.total), "distress event rate"],
+    [metrics.A1.auroc.toFixed(3), "logistic test AUROC"]
+  ];
+  for (const [value, description] of cards) {
+    const card = text(el("summary"), "div", "", "labTile");
+    text(card, "strong", value);
+    text(card, "span", description);
+  }
+  el("finding").textContent = "On " + metrics.common_baseline_rows + " shared test observations, " +
+    "Altman Z″ reached " + metrics.A0.auroc.toFixed(3) + " AUROC and logistic regression reached " +
+    metrics.A1.auroc.toFixed(3) + ". A distress event is a qualifying loss onset, cash-flow collapse, dividend cut, or bankruptcy.";
+  const available = new Set(study.history.map(row => row.cik));
+  for (const row of study.sample.filter(row => available.has(row.cik)).sort((a,b) => a.ticker.localeCompare(b.ticker))) {
+    option(company, row.cik, row.ticker);
+  }
+  if ([...company.options].some(o => o.text === "AEP")) company.value = "4904";
+  if (replay) {
+    mode.querySelector('option[value="research"]')?.remove();
+    mode.value = query.get("case") === "today" ? "today" : "demo";
+    run.textContent = "Play voice debate";
+  }
+  selectCompany();
+  company.addEventListener("change", selectCompany);
+  cutoff.addEventListener("change", showCase);
+  mode.addEventListener("change", showCase);
+  run.addEventListener("click", debate);
+  run.disabled = false;
+}
+
+init().catch(() => {
+  status.textContent = replay ? "The recording could not be loaded. Refresh to try again."
+    : publicApi ? "The live model server is unavailable. Use Watch the recording."
+    : "Start the research server and open http://127.0.0.1:8790 to load the study.";
+});
+})();

@@ -1,0 +1,101 @@
+ticker,cik,sector,sector_source,left_index
+FB,1326801,Communication Services,m2-fja-2019.csv,True
+CTL,18926,Communication Services,m2-fja-2019.csv,True
+T,732717,Communication Services,m2-gics.csv,False
+ATVI,718877,Communication Services,m2-fja-2019.csv,True
+CBS,813828,Communication Services,m2-fja-2019.csv,True
+DISCA,1437107,Communication Services,m2-fja-2019.csv,True
+LEN,920760,Consumer Discretionary,m2-gics.csv,False
+LEG,58492,Consumer Discretionary,m2-fja-2019.csv,True
+AMZN,1018724,Consumer Discretionary,m2-gics.csv,False
+MCD,63908,Consumer Discretionary,m2-gics.csv,False
+PVH,78239,Consumer Discretionary,m2-fja-2019.csv,True
+CPRI,1530721,Consumer Discretionary,m2-fja-2019.csv,True
+DHI,882184,Consumer Discretionary,m2-gics.csv,False
+FL,850209,Consumer Discretionary,2018 archived S&P 500 sector list,True
+BWA,908255,Consumer Discretionary,m2-fja-2019.csv,False
+TPR,1116132,Consumer Discretionary,m2-gics.csv,False
+WHR,106640,Consumer Discretionary,m2-fja-2019.csv,True
+TSCO,916365,Consumer Discretionary,m2-gics.csv,False
+GRMN,1121788,Consumer Discretionary,m2-gics.csv,False
+ULTA,1403568,Consumer Discretionary,m2-gics.csv,False
+HAS,46080,Consumer Discretionary,m2-gics.csv,False
+HOG,793952,Consumer Discretionary,m2-fja-2019.csv,True
+DLTR,935703,Consumer Staples,m2-gics.csv,False
+CL,21665,Consumer Staples,m2-gics.csv,False
+MNST,865752,Consumer Staples,m2-gics.csv,False
+TGT,27419,Consumer Staples,m2-gics.csv,False
+KMB,55785,Consumer Staples,m2-gics.csv,False
+COTY,1024305,Consumer Staples,m2-fja-2019.csv,True
+HRL,48465,Consumer Staples,m2-gics.csv,False
+SYY,96021,Consumer Staples,m2-gics.csv,False
+DG,29534,Consumer Staples,m2-gics.csv,False
+PXD,1038357,Energy,m2-fja-2019.csv,True
+MPC,1510295,Energy,m2-gics.csv,False
+APC,773910,Energy,2018 archived S&P 500 sector list,True
+CVX,93410,Energy,m2-gics.csv,False
+DVN,1090012,Energy,m2-gics.csv,False
+VLO,1035002,Energy,m2-gics.csv,False
+APA,1841666,Energy,m2-gics.csv,False
+MRO,101778,Energy,m2-fja-2019.csv,True
+MDT,1613103,Health Care,m2-gics.csv,False
+PRGO,1585364,Health Care,m2-fja-2019.csv,True
+INCY,879169,Health Care,m2-gics.csv,False
+BDX,10795,Health Care,m2-gics.csv,False
+LH,920148,Health Care,m2-gics.csv,False
+DGX,1022079,Health Care,m2-gics.csv,False
+MYL,1623613,Health Care,m2-fja-2019.csv,True
+ZBH,1136869,Health Care,m2-gics.csv,False
+ABMD,815094,Health Care,m2-fja-2019.csv,True
+MRK,310158,Health Care,m2-gics.csv,False
+ALXN,899866,Health Care,m2-fja-2019.csv,True
+REGN,872589,Health Care,m2-gics.csv,False
+ALGN,1097149,Health Care,m2-gics.csv,False
+COO,711404,Health Care,m2-gics.csv,False
+GILD,882095,Health Care,m2-gics.csv,False
+HON,773840,Industrials,m2-gics.csv,False
+RSG,1060391,Industrials,m2-gics.csv,False
+DAL,27904,Industrials,m2-gics.csv,False
+MAS,62996,Industrials,m2-gics.csv,False
+URI,1067701,Industrials,m2-gics.csv,False
+XYL,1524472,Industrials,m2-gics.csv,False
+BR,1383312,Industrials,m2-gics.csv,False
+TDG,1260221,Industrials,m2-gics.csv,False
+RHI,315213,Industrials,m2-fja-2019.csv,True
+SNA,91440,Industrials,m2-gics.csv,False
+JEC,52988,Industrials,m2-fja-2019.csv,True
+CSX,277948,Industrials,m2-gics.csv,False
+PAYX,723531,Industrials,m2-gics.csv,False
+ALLE,1579241,Industrials,m2-gics.csv,False
+MMM,66740,Industrials,m2-gics.csv,False
+RTN,1047122,Industrials,m2-fja-2019.csv,True
+CAT,18230,Industrials,m2-gics.csv,False
+NLSN,1492633,Industrials,m2-fja-2019.csv,True
+KEYS,1601046,Information Technology,m2-gics.csv,False
+FLT,1175454,Information Technology,m2-fja-2019.csv,True
+CSCO,858877,Information Technology,m2-gics.csv,False
+HPQ,47217,Information Technology,m2-gics.csv,False
+ANSS,1013462,Information Technology,m2-fja-2019.csv,False
+TSS,721683,Information Technology,2018 archived S&P 500 sector list,True
+DXC,1688568,Information Technology,m2-fja-2019.csv,True
+MCHP,827054,Information Technology,m2-gics.csv,False
+INTU,896878,Information Technology,m2-gics.csv,False
+AVGO,1730168,Information Technology,m2-gics.csv,False
+QRVO,1604778,Information Technology,m2-fja-2019.csv,True
+ANET,1596532,Information Technology,m2-gics.csv,False
+GLW,24741,Information Technology,m2-gics.csv,False
+MXIM,743316,Information Technology,m2-fja-2019.csv,True
+WDC,106040,Information Technology,m2-gics.csv,False
+LYB,1489393,Materials,m2-gics.csv,False
+IFF,51253,Materials,m2-gics.csv,False
+WRK,1732845,Materials,SEC 2018 issuer succession filing 0001171843-18-007567,True
+FMC,37785,Materials,m2-fja-2019.csv,False
+NUE,73309,Materials,m2-gics.csv,False
+AVY,8818,Materials,m2-gics.csv,False
+EIX,827052,Utilities,m2-gics.csv,False
+SO,92122,Utilities,m2-gics.csv,False
+NRG,1013871,Utilities,m2-gics.csv,False
+ETR,65984,Utilities,m2-gics.csv,False
+AEP,4904,Utilities,m2-gics.csv,False
+EXC,1109357,Utilities,m2-gics.csv,False
+ES,72741,Utilities,m2-gics.csv,False

@@ -1,0 +1,22 @@
+ticker,cik,sector,sector_source
+APC,773910,Energy,2018 archived S&P 500 sector list
+BHF,1685040,Financials,2018 archived S&P 500 sector list
+BHGE,1701605,Energy,2018 archived S&P 500 sector list
+CELG,816284,Health Care,2018 archived S&P 500 sector list
+DWDP,1666700,Materials,2018 archived S&P 500 sector list
+FL,850209,Consumer Discretionary,2018 archived S&P 500 sector list
+FLR,1124198,Industrials,2018 archived S&P 500 sector list
+GT,42582,Consumer Discretionary,2018 archived S&P 500 sector list
+HCP,765880,Real Estate,2018 archived S&P 500 sector list
+HRS,202058,Industrials,Historical issuer industry classification
+JEF,96223,Financials,Historical issuer industry classification
+LLL,1056239,Industrials,2018 archived S&P 500 sector list
+MAT,63276,Consumer Discretionary,2018 archived S&P 500 sector list
+NFX,912750,Energy,2018 archived S&P 500 sector list
+NKTR,906709,Health Care,2018 archived S&P 500 sector list
+RHT,1087423,Information Technology,2018 archived S&P 500 sector list
+SCG,754737,Utilities,2018 archived S&P 500 sector list
+SYMC,849399,Information Technology,2018 archived S&P 500 sector list
+TMK,320335,Financials,2018 archived S&P 500 sector list
+TSS,721683,Information Technology,2018 archived S&P 500 sector list
+WRK,1732845,Materials,SEC 2018 issuer succession filing 0001171843-18-007567

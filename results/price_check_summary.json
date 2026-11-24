@@ -1,0 +1,41 @@
+{
+  "matched": 1793,
+  "eligible": 2128,
+  "cached_only": false,
+  "yahoo_only": true,
+  "coverage_by_source": {
+    "Yahoo Finance adjusted close": 1793
+  },
+  "issuer_failures": {
+    "CTL": "HTTP Error 404: Not Found",
+    "ATVI": "HTTP Error 404: Not Found",
+    "CBS": "HTTP Error 404: Not Found",
+    "DISCA": "HTTP Error 404: Not Found",
+    "LEG": "HTTP Error 400: Bad Request",
+    "FL": "HTTP Error 404: Not Found",
+    "PXD": "HTTP Error 404: Not Found",
+    "APC": "HTTP Error 400: Bad Request",
+    "MRO": "HTTP Error 404: Not Found",
+    "MYL": "HTTP Error 404: Not Found",
+    "ABMD": "HTTP Error 404: Not Found",
+    "ALXN": "HTTP Error 404: Not Found",
+    "JEC": "HTTP Error 404: Not Found",
+    "RTN": "HTTP Error 404: Not Found",
+    "NLSN": "HTTP Error 404: Not Found",
+    "FLT": "HTTP Error 404: Not Found",
+    "ANSS": "HTTP Error 400: Bad Request",
+    "QRVO": "HTTP Error 400: Bad Request",
+    "MXIM": "HTTP Error 404: Not Found",
+    "WRK": "HTTP Error 404: Not Found"
+  },
+  "total_return": {
+    "positive_median": -0.07105248315032991,
+    "negative_median": 0.10147083142427649,
+    "p": 5.441358373513303e-13
+  },
+  "max_drawdown": {
+    "positive_median": -0.33845019634267925,
+    "negative_median": -0.23259989755756294,
+    "p": 3.0249599289033885e-27
+  }
+}
