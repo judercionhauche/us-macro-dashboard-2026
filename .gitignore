@@ -11,3 +11,6 @@ results/llm_calls.lock
 results/demo_llm_calls.jsonl
 results/demo_llm_calls.lock
 results/demo_speech_calls.jsonl
+results/matched_numeric_pilot/calls.jsonl
+results/matched_numeric_pilot/calls.lock
+m2/evidence/human_benchmark/fitch_corporate_*.csv.gz

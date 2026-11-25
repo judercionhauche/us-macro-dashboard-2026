@@ -1,0 +1,65 @@
+cik,ticker,sec_registrant,match_status,fitch_obligor,fitch_lei,fitch_grade,rating_action_date,rating_action_class,match_method,rating_age_days,Fitch_score
+4904,AEP,"American Electric Power Company, Inc.",scored,"American Electric Power Company, Inc.",1B4S6S7G0TW5EE83BO58,BBB,2021-10-28,DG,registrant name,1160.0,8.0
+10795,BDX,"BECTON, DICKINSON AND COMPANY",scored,"Becton, Dickinson & Company",ICE2EP6D98PQUILVRZ91,BBB,2022-06-17,UP,registrant name,928.0,8.0
+18926,CTL,"LUMEN TECHNOLOGIES, INC.",scored,"Lumen Technologies, Inc.",8M3THTGWLTYZVE6BBY25,CCC-,2023-11-02,DG,registrant name,425.0,18.0
+21665,CL,COLGATE-PALMOLIVE COMPANY,withdrawn,Colgate-Palmolive Company,YMEGZFW4SBUSS5BQXF88,WD,2016-12-12,WO,registrant name,2941.0,
+24741,GLW,CORNING INC /NY,withdrawn,Corning Incorporated,549300X2937PB0CJ7I56,WD,2017-06-07,WO,registrant name,2764.0,
+27419,TGT,Target Corporation,scored,Target Corporation,8WDDFXB5T1Z6J0XC1L66,A,2021-06-07,UP,registrant name,1303.0,5.0
+27904,DAL,"DELTA AIR LINES, INC.",scored,"Delta Air Lines, Inc.",Q2CCMS6R0AS67HJMBN42,BB+,2020-04-10,DG,registrant name,1726.0,10.0
+29534,DG,DOLLAR GENERAL CORP,no_parent_grade_in_archive,,,,,,,,
+37785,FMC,FMC CORPORATION,no_parent_grade_in_archive,,,,,,,,
+47217,HPQ,HP INC.,scored,HP Inc.,WHKXQACZ14C5XRO8LW03,BBB+,2015-11-03,DG,registrant name,3346.0,7.0
+48465,HRL,HORMEL FOODS CORPORATION,no_parent_grade_in_archive,,,,,,,,
+51253,IFF,INTERNATIONAL FLAVORS & FRAGRANCES INC,scored,International Flavors & Fragrances Inc.,BZLRL03D3GPGMOGFO832,BBB,2020-08-24,NW,registrant name,1590.0,8.0
+52988,JEC,Jacobs Solutions Inc.,no_parent_grade_in_archive,,,,,,,,
+55785,KMB,KIMBERLY-CLARK CORPORATION,withdrawn,Kimberly-Clark Corp.,MP3J6QPYPGN75NVW2S34,WD,2018-07-13,WO,registrant name,2363.0,
+62996,MAS,Masco Corporation,scored,Masco Corporation,5GCSNMQXHEYA1JO8QN11,BBB,2021-02-17,UP,registrant name,1413.0,8.0
+63908,MCD,MCDONALDS CORP,withdrawn,McDonald's Corporation,UE2136O97NLB5BYP9H04,WD,2019-10-08,WO,registrant name,1911.0,
+65984,ETR,ENTERGY CORP /DE/,no_parent_grade_in_archive,,,,,,,,
+66740,MMM,3M COMPANY,no_parent_grade_in_archive,,,,,,,,
+72741,ES,EVERSOURCE ENERGY,scored,Eversource Energy,SJ7XXD41SQU3ZNWUJ746,BBB+,2012-06-15,HS,registrant name,4582.0,7.0
+78239,PVH,PVH CORP.,no_parent_grade_in_archive,,,,,,,,
+106040,WDC,WESTERN DIGITAL CORPORATION,scored,Western Digital Corp.,549300QQXOOYEF89IC56,BB+,2023-11-08,DG,registrant name,419.0,10.0
+106640,WHR,WHIRLPOOL CORP /DE/,scored,Whirlpool Corp.,WHENKOULSSK7WUM60H03,BBB,2012-06-15,HS,registrant name,4582.0,8.0
+315213,RHI,ROBERT HALF INC.,no_parent_grade_in_archive,,,,,,,,
+711404,COO,"The Cooper Companies, Inc.",no_parent_grade_in_archive,,,,,,,,
+793952,HOG,"HARLEY-DAVIDSON, INC.",scored,"Harley-Davidson, Inc.",ZDNAWZWXIKMWI51R2A08,BBB+,2021-03-24,DG,registrant name,1378.0,7.0
+827052,EIX,EDISON INTERNATIONAL,scored,Edison International,549300I7ROF15MAEVP56,BBB,2023-04-28,UP,registrant name,613.0,8.0
+827054,MCHP,MICROCHIP TECHNOLOGY INC,scored,Microchip Technology Inc.,5493007PTFULNYZJ1R12,BBB,2022-03-14,UP,registrant name,1023.0,8.0
+858877,CSCO,"CISCO SYSTEMS, INC.",no_parent_grade_in_archive,,,,,,,,
+865752,MNST,Monster Beverage Corp,no_parent_grade_in_archive,,,,,,,,
+872589,REGN,"REGENERON PHARMACEUTICALS, INC.",no_parent_grade_in_archive,,,,,,,,
+879169,INCY,INCYTE CORPORATION,no_parent_grade_in_archive,,,,,,,,
+882095,GILD,"GILEAD SCIENCES, INC.",no_parent_grade_in_archive,,,,,,,,
+896878,INTU,INTUIT INC.,no_parent_grade_in_archive,,,,,,,,
+908255,BWA,BORGWARNER INC.,scored,BorgWarner Inc.,549300DSFX2IE88NSX47,BBB+,2012-06-15,HS,registrant name,4582.0,7.0
+916365,TSCO,TRACTOR SUPPLY CO /DE/,no_parent_grade_in_archive,,,,,,,,
+935703,DLTR,"DOLLAR TREE, INC.",no_parent_grade_in_archive,,,,,,,,
+1018724,AMZN,"AMAZON.COM, INC.",scored,"Amazon.com, Inc.",ZXTILKJKG63JELOEG630,AA-,2021-06-07,UP,registrant name,1303.0,3.0
+1022079,DGX,Quest Diagnostics Inc,scored,Quest Diagnostics Inc.,8MCWUBXQ0WE04KMXBX50,BBB,2014-03-12,DG,registrant name,3947.0,8.0
+1024305,COTY,COTY INC.,scored,Coty Inc.,549300BO9IWPF3S48F93,BB,2023-09-08,NW,registrant name,480.0,11.0
+1035002,VLO,VALERO ENERGY CORP/TX,scored,Valero Energy Corporation,549300XTO5VR8SKV1V74,BBB,2012-06-15,HS,registrant name,4582.0,8.0
+1060391,RSG,"REPUBLIC SERVICES, INC.",scored,"Republic Services, Inc.",NKNQHM6BLECKVOQP7O46,A-,2023-08-31,UP,registrant name,488.0,6.0
+1067701,URI,"United Rentals, Inc.",no_parent_grade_in_archive,,,,,,,,
+1097149,ALGN,"ALIGN TECHNOLOGY, INC.",no_parent_grade_in_archive,,,,,,,,
+1109357,EXC,EXELON CORPORATION,scored,Exelon Corporation,3SOUA6IRML7435B56G12,BBB,2022-01-14,DG,registrant name,1082.0,8.0
+1116132,TPR,"Tapestry, Inc",withdrawn,"Tapestry, Inc.",549300LJNVY5SW3VTN33,WD,2021-10-22,WO,registrant name,1166.0,
+1121788,GRMN,GARMIN LTD,no_parent_grade_in_archive,,,,,,,,
+1136869,ZBH,"ZIMMER BIOMET HOLDINGS, INC.",scored,"Zimmer Biomet Holdings, Inc.",2P2YLDVPES3BXQ1FRB91,BBB,2020-10-07,NW,registrant name,1546.0,8.0
+1175454,FLT,"Corpay, Inc",no_parent_grade_in_archive,,,,,,,,
+1260221,TDG,TransDigm Group Incorporated,withdrawn,TransDigm Group Inc.,,WD,2019-03-05,WO,CIK,2128.0,
+1326801,FB,"Meta Platforms, Inc.",no_parent_grade_in_archive,,,,,,,,
+1383312,BR,"BROADRIDGE FINANCIAL SOLUTIONS, INC.",scored,"Broadridge Financial Solutions, Inc.",549300KZDJZQ2YIHRC28,BBB+,2012-06-15,HS,registrant name,4582.0,7.0
+1403568,ULTA,"ULTA BEAUTY, INC.",no_parent_grade_in_archive,,,,,,,,
+1437107,DISCA,"Warner Bros. Discovery, Inc.",scored,"Warner Bros. Discovery, Inc.",5493006ZCRFWKF6B1K26,BBB-,2022-03-07,NW,registrant name,1030.0,9.0
+1489393,LYB,LYONDELLBASELL INDUSTRIES N.V.,scored,LyondellBasell Industries N.V.,BN6WCCZ8OVP3ITUUVN49,BBB,2020-10-02,NW,registrant name,1551.0,8.0
+1510295,MPC,Marathon Petroleum Corporation,scored,Marathon Petroleum Corporation,3BNYRYQHD39K4LCKQF12,BBB,2015-02-05,NW,registrant name,3617.0,8.0
+1524472,XYL,Xylem Inc.,withdrawn,"Xylem, Inc.",549300DF5MV96DRYLQ48,WD,2021-10-25,WO,registrant name,1163.0,
+1530721,CPRI,CAPRI HOLDINGS LIMITED,scored,Capri Holdings Limited,549300LPG8W0H1OX3A26,BBB-,2021-08-25,UP,registrant name,1224.0,9.0
+1585364,PRGO,Perrigo Company plc,scored,Perrigo Company plc,549300IFOQS6R1QLY196,BB+,2022-03-28,DG,registrant name,1009.0,10.0
+1596532,ANET,"Arista Networks, Inc.",no_parent_grade_in_archive,,,,,,,,
+1601046,KEYS,"KEYSIGHT TECHNOLOGIES, INC.",scored,"Keysight Technologies, Inc.",549300GLKVIO8YRCYN02,BBB+,2023-09-13,UP,registrant name,475.0,7.0
+1604778,QRVO,"Qorvo, Inc.",scored,"Qorvo, Inc.",254900YAUJV2EUEVBR11,BBB+,2021-08-03,NW,registrant name,1246.0,7.0
+1613103,MDT,Medtronic plc,no_parent_grade_in_archive,,,,,,,,
+1688568,DXC,DXC TECHNOLOGY COMPANY,scored,DXC Technology Company,549300DOVZ3EDJB7O259,BBB,2020-06-10,DG,registrant name,1665.0,8.0
+1841666,APA,APA CORPORATION,scored,APA Corporation,549300VCIWLRHYVSHC79,BBB-,2022-05-02,UP,registrant name,974.0,9.0
