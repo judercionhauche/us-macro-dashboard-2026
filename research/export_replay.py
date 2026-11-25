@@ -6,7 +6,7 @@ from pathlib import Path
 from shutil import copyfile
 
 import pandas as pd
-from research.risk_study import write_study
+from research.risk_study import write_benchmark, write_study
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +54,7 @@ def export(output, recordings, public_api=None):
             "metrics":json.loads((ROOT/"results/preliminary_baselines.json").read_text())}
     (output/"replay/study.json").write_text(json.dumps(data, allow_nan=False))
     write_study(output / "results/risk_study.json")
+    write_benchmark(output / "results/risk_benchmark.json")
     html = (ROOT/"index.html").read_text()
     if public_api:
         from html import escape
@@ -81,7 +82,8 @@ def export(output, recordings, public_api=None):
         html = html.replace(f'  <script src="{script}"></script>\n', "")
     html = html.replace('<span id="yearNow"></span>', '2026')
     (output/"index.html").write_text(html)
-    for path in ("risk.js","styles.css","chart.umd.js","results/figures/fig2.png"):
+    for path in ("risk.js","styles.css","chart.umd.js","results/figures/fig2.png",
+                 "results/human_benchmark/ratings_vs_ai.png"):
         target = output / path
         target.parent.mkdir(parents=True, exist_ok=True)
         copyfile(ROOT/path, target)

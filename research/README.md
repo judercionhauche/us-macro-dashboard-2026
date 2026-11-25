@@ -108,7 +108,7 @@ API credentials or the local demo server. Serve the output under `risk-demo/`
 on GitHub Pages. The Python server remains the entry point for new live runs.
 The export includes a historical study snapshot so visitors can use the company
 and cutoff selectors even when the live service is unavailable. If the
-historical panel changes, regenerate the repository copy with
+historical panel or audited Fitch benchmark changes, regenerate the files with
 `python -m research.risk_study`.
 
 ## Public live deployment

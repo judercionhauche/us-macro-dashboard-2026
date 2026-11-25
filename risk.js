@@ -32,6 +32,10 @@ const stage = el("riskStage"), progress = el("riskProgress");
 const roles = ["Profitability", "Cash Flow & Debt", "Industry", "Filing Narrative", "moderator"];
 const mode = el("riskMode");
 const pause = el("riskPause"), stop = el("riskStop"), debrief = el("riskDebrief");
+const benchmarkSection = el("riskBenchmark");
+const benchmarkRequest = fetch("results/risk_benchmark.json", {signal: AbortSignal.timeout(5000)})
+  .then(response => response.ok ? response.json() : null)
+  .catch(() => null);
 let voteChart, audio, controller, paused = false, resumePlayback;
 const pct = value => (value * 100).toFixed(1) + "%";
 
@@ -167,8 +171,9 @@ function text(parent, tag, value, className) {
   return node;
 }
 
-function display(event) {
+function display(event, selectedCase) {
   if (event.type === "start") {
+    selectedCase.cutoff = event.cutoff || selectedCase.cutoff;
     status.textContent = (replay ? "Recorded debate generated with " : "Debate running with ") + event.model + ".";
     if (event.history) {
       visibleHistory = event.history;
@@ -239,9 +244,12 @@ function display(event) {
     text(conclusion, "strong", "Moderator’s deciding vote · " + D.label + " risk · " + pct(D.p));
     text(conclusion, "p", "Independent specialist average: " + pct(E.p) + ".");
     text(conclusion, "p", D.say);
+    const comparisonLink = text(conclusion, "button", "See human analyst comparison", "btn");
+    comparisonLink.type = "button";
+    comparisonLink.addEventListener("click", () => debrief.scrollIntoView({block:"start"}));
     conclusion.hidden = false;
     for (const card of stage.children) card.classList.remove("speaking");
-    el("outcome").hidden = event.mode !== "demo";
+    el("outcome").hidden = false;
     if (event.mode === "today") {
       el("outcome").hidden = false;
       el("outcome").textContent = "The outcome for the coming year is still unknown.";
@@ -250,11 +258,62 @@ function display(event) {
       drawHistory([...visibleHistory, ...event.observed], visibleHistory.length);
       text(conclusion, "p", "The shaded chart area shows what happened after the cutoff.");
     }
+    showBenchmark(selectedCase, D.p);
     showDebrief(event.result);
     status.textContent = "Voice debate complete.";
   } else if (event.type === "error") {
     throw new Error(event.error);
   }
+}
+
+function auditedCase(run) {
+  return run.mode !== "today" && run.cutoff === run.benchmark?.cutoff
+    ? run.benchmark.cases[String(run.cik)] : null;
+}
+
+function showBenchmark(run, vote) {
+  benchmarkSection.replaceChildren();
+  const heading = text(benchmarkSection, "h3", "How does this compare with human analysts?");
+  heading.id = "riskBenchmarkTitle";
+  const {benchmark} = run;
+  if (!benchmark) {
+    text(benchmarkSection, "p", "The historical analyst benchmark could not load.");
+    return;
+  }
+  const match = auditedCase(run);
+  const values = text(benchmarkSection, "dl", "", "riskBenchmarkValues");
+  function item(label, value) {
+    const field = text(values, "div", "");
+    text(field, "dt", label);
+    text(field, "dd", value);
+  }
+  item("AI moderator · this debate", pct(vote));
+  item("Published Fitch issuer grade", match?.grade ?? "No matched grade");
+  item("Observed study outcome", match ? (match.event ? "Financial trouble observed" : "No qualifying event")
+    : run.mode === "today" ? "Pending" : "See the case outcome below");
+  if (match) el("outcome").hidden = true;
+  if (match?.grade) {
+    text(benchmarkSection, "p",
+      `${run.ticker} had a ${match.grade} issuer grade from a rating action dated ${match.action_date}, in the ${benchmark.archive_date} archive. Fitch grades credit default risk. The AI vote covers a broader set of financial setbacks.`);
+  } else {
+    text(benchmarkSection, "p", run.mode === "today"
+      ? "Today's run has a different cutoff from the historical Fitch test. Its four-quarter outcome is still pending."
+      : `The Fitch test uses ${benchmark.cutoff}. This company and cutoff have no usable matching grade in that test.`);
+  }
+  if (match?.corrected) {
+    text(benchmarkSection, "p", "The outcome shown here incorporates the audit of the original dividend-cut flag.");
+  }
+  const details = text(benchmarkSection, "details", "");
+  text(details, "summary", "See the historical ranking comparison");
+  text(details, "p",
+    `Across ${benchmark.companies} companies with comparable Fitch grades and ${benchmark.events} observed events, Fitch scored ${benchmark.fitch_auroc.toFixed(3)} and the AI debate scored ${benchmark.debate_auroc.toFixed(3)} on AUROC. These scores measure how well the earlier methods ranked companies by risk. The AI runs used only financial numbers.`);
+  const image = text(details, "img", "");
+  image.src = "results/human_benchmark/ratings_vs_ai.png";
+  image.alt = "Risk ranking with 95% intervals for Fitch, a single AI analyst, three independent AI analysts, and debate.";
+  image.loading = "lazy";
+  const sources = text(details, "p", "");
+  const evidenceLink = text(sources, "a", "Open the study results and matching audit");
+  evidenceLink.href = "https://github.com/judercionhauche/us-macro-dashboard-2026/tree/sp500-risk/results/human_benchmark";
 }
 
 function showDebrief(result) {
@@ -425,9 +484,12 @@ async function debate() {
   conclusion.hidden = el("evidence").hidden = stage.hidden = progress.hidden = debrief.hidden = true;
   status.textContent = replay ? "Loading the recorded debate…" : "Preparing cutoff-safe evidence…";
   try {
-    const response = replay ? await fetch("replay/" + mode.value + "/events.jsonl", {signal}) : await fetch(api("/api/debate", "/debate"), {
+    const selectedCase = {cik:Number(company.value), ticker:company.selectedOptions[0].text,
+      cutoff:cutoff.value, mode:mode.value, benchmark:await benchmarkRequest};
+    const {cik, cutoff:decisionDate, mode:decisionMode} = selectedCase;
+    const response = replay ? await fetch("replay/" + decisionMode + "/events.jsonl", {signal}) : await fetch(api("/api/debate", "/debate"), {
       signal, method:"POST", headers:{"Content-Type":"application/json", ...(publicApi ? {"X-Risk-Access":access} : {"X-Risk-Demo":"local"})},
-      body:JSON.stringify({cik:Number(company.value), cutoff:cutoff.value, mode:mode.value})
+      body:JSON.stringify({cik, cutoff:decisionDate, mode:decisionMode})
     });
     if (!response.ok) throw new Error(replay ? "Could not load the recording." : (await response.json()).error);
     const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -440,12 +502,15 @@ async function debate() {
       buffer = lines.pop();
       for (const line of lines) {
         const event = JSON.parse(line);
+        // The spoken historical reveal uses the original labels. Show the audited result
+        // in the comparison panel when the dividend flag changed that outcome.
+        if (event.type === "narration" && event.title === "What happened next" && auditedCase(selectedCase)?.corrected) continue;
         if (event.type === "turn" || event.type === "narration") {
           await playTurn(event, signal);
           for (const card of stage.children) card.classList.remove("speaking");
           status.textContent = "Preparing the next turn…";
         } else {
-          display(event);
+          display(event, selectedCase);
         }
         completed ||= event.type === "result";
       }

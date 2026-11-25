@@ -103,6 +103,8 @@ class Dashboard(BaseHTTPRequestHandler):
         assets = {"/": ("index.html", "text/html"),
                   "/styles.css": ("styles.css", "text/css"),
                   "/results/risk_study.json": ("results/risk_study.json", "application/json"),
+                  "/results/risk_benchmark.json": ("results/risk_benchmark.json", "application/json"),
+                  "/results/human_benchmark/ratings_vs_ai.png": ("results/human_benchmark/ratings_vs_ai.png", "image/png"),
                   "/results/figures/fig2.png": ("results/figures/fig2.png", "image/png")}
         for script in ("app.js", "lab.js", "voice-debate.js", "risk.js",
                        "marked.min.js", "chart.umd.js"):
