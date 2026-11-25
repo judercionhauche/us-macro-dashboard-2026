@@ -38,15 +38,16 @@
         <article class="plCard">
           <h2>Company evidence</h2>
           <div class="controls">
-            <label>Company <select class="plSelect" id="company"></select></label>
-            <label>Cutoff <select class="plSelect" id="cutoff"></select></label>
-            <label>Mode <select class="plSelect" id="riskMode">
+            <label>Company <select class="plSelect" id="company" disabled></select></label>
+            <label>Cutoff <select class="plSelect" id="cutoff" aria-describedby="riskHistoryStatus" disabled></select></label>
+            <label>Mode <select class="plSelect" id="riskMode" disabled>
               <option value="research">Research · anonymous, scaled</option>
               <option value="demo">Historical demo · real values</option>
               <option value="today">Today · latest filings</option>
             </select></label>
           </div>
           <p id="sector"></p>
+          <p id="riskHistoryStatus" class="muted small" role="status" hidden></p>
           <div class="chart"><canvas id="history" aria-label="Financial ratios through the selected cutoff" role="img"></canvas></div>
         </article>
         <article class="plCard">

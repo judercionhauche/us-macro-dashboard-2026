@@ -24,9 +24,10 @@ document.getElementById("riskLab").hidden = false;
 document.title = "S&P 500 Risk Lab";
 
 const el = id => document.getElementById(id);
-let study, chart, visibleHistory = [];
+let study, chart, visibleHistory = [], liveReady = false, historyRequest;
 const company = el("company"), cutoff = el("cutoff"), run = el("riskRun");
 const status = el("status"), transcript = el("transcript"), conclusion = el("conclusion");
+const historyStatus = el("riskHistoryStatus");
 const stage = el("riskStage"), progress = el("riskProgress");
 const roles = ["Profitability", "Cash Flow & Debt", "Industry", "Filing Narrative", "moderator"];
 const mode = el("riskMode");
@@ -42,39 +43,88 @@ function rows() {
   return study.history.filter(row => row.cik === Number(company.value));
 }
 
+function updateControls(running = false) {
+  company.disabled = !study || running || replay;
+  cutoff.disabled = !study || running || replay || mode.value === "today";
+  mode.disabled = !study || running;
+  run.disabled = !study || running || (!replay && !liveReady);
+}
+
 function selectCompany() {
+  const previous = cutoff.value;
   cutoff.replaceChildren();
-  for (const row of rows().slice().reverse()) option(cutoff, row.cutoff);
+  if (replay) {
+    option(cutoff, study.recordings?.demo.cutoff ?? rows().at(-1).cutoff);
+  } else {
+    for (const row of rows().reverse()) option(cutoff, row.cutoff);
+    if ([...cutoff.options].some(item => item.value === previous)) cutoff.value = previous;
+  }
   showCase();
 }
 
+function setHistoryStatus(message = "") {
+  historyStatus.textContent = message;
+  historyStatus.hidden = !message;
+}
+
+async function loadCurrentHistory(cik) {
+  const request = new AbortController();
+  historyRequest = request;
+  try {
+    const response = await fetch(api("/api/current-history", "/history") + "?cik=" + encodeURIComponent(cik), {
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(8000)])
+    });
+    if (!response.ok) throw new Error("Current history is unavailable.");
+    const history = await response.json();
+    if (!Array.isArray(history) || !history.length) throw new Error("No current history.");
+    if (request.signal.aborted) return;
+    visibleHistory = history;
+    drawHistory(history);
+    setHistoryStatus("Using the latest available filings.");
+  } catch {
+    if (!request.signal.aborted) showHistoricalFallback();
+  }
+}
+
+function showHistoricalFallback() {
+  const asOf = visibleHistory.at(-1)?.cutoff;
+  setHistoryStatus("Latest filings are unavailable. Showing historical evidence" + (asOf ? " through " + asOf : "") + ".");
+}
+
 function showCase() {
+  historyRequest?.abort();
+  setHistoryStatus();
   const selected = study.sample.find(row => row.cik === Number(company.value));
   const history = rows().filter(row => row.cutoff <= cutoff.value);
   const last = history.at(-1);
+  const today = mode.value === "today";
+  const recording = replay ? study.recordings?.[mode.value] : null;
   el("sector").textContent = selected.sector;
-  el("outcome").textContent = last?.positive == null
+  el("outcome").textContent = today ? "The outcome for the coming year is still unknown." : last?.positive == null
     ? "A frozen outcome is unavailable at this cutoff."
     : last.positive ? "Observed outcome: distress event within four quarters."
                     : "Observed outcome: no qualifying distress event within four quarters.";
-  cutoff.disabled = mode.value === "today";
-  visibleHistory = mode.value === "today" ? rows() : history;
+  if (replay) {
+    cutoff.options[0].text = recording?.cutoff ?? (today ? "Recorded Today case" : cutoff.value);
+  }
+  visibleHistory = recording?.history ?? (today ? rows() : history);
   drawHistory(visibleHistory);
   transcript.replaceChildren();
   stage.hidden = progress.hidden = true;
   conclusion.hidden = debrief.hidden = true;
   el("evidence").hidden = true;
-  status.textContent = replay ? "Ready to play the recorded debate." : "Ready to run the selected case.";
-  if (!replay && mode.value === "today") {
-    const selectedCik = company.value;
-    fetch(api("/api/current-history", "/history") + "?cik=" + encodeURIComponent(selectedCik))
-      .then(response => response.ok ? response.json() : [])
-      .then(history => {
-        if (history.length && mode.value === "today" && company.value === selectedCik && !run.disabled) {
-          visibleHistory = history;
-          drawHistory(history);
-        }
-      }).catch(() => {});
+  status.textContent = replay ? "Ready to play the recorded debate."
+    : liveReady ? "Ready to run the selected case."
+      : publicApi ? "Live debate is unavailable. Browse historical evidence or choose Watch the recording."
+        : "Live debate is unavailable here. Browse historical evidence or open the local research server to run a debate.";
+  updateControls();
+  if (today && !replay) {
+    if (liveReady) {
+      setHistoryStatus("Loading the latest filings…");
+      loadCurrentHistory(company.value);
+    } else {
+      showHistoricalFallback();
+    }
   }
 }
 
@@ -352,7 +402,9 @@ stop.addEventListener("click", () => {
 });
 
 async function debate() {
-  run.disabled = company.disabled = cutoff.disabled = mode.disabled = true;
+  historyRequest?.abort();
+  setHistoryStatus();
+  updateControls(true);
   pause.hidden = stop.hidden = false;
   pause.textContent = "Pause audio";
   paused = false;
@@ -409,15 +461,31 @@ async function debate() {
     if (paused) window.speechSynthesis?.resume();
     if (window.speechSynthesis) speechSynthesis.cancel();
     pause.hidden = stop.hidden = true;
-    run.disabled = company.disabled = mode.disabled = false;
-    cutoff.disabled = mode.value === "today";
+    updateControls();
   }
 }
 
-async function init() {
-  const response = await fetch(replay ? "replay/study.json" : api("/api/study", "/study"));
+async function fetchStudy(url, options) {
+  const response = await fetch(url, options);
   if (!response.ok) throw new Error("Could not load study data.");
-  study = await response.json();
+  const data = await response.json();
+  if (!data.sample?.length || !data.history?.length || !data.metrics?.A1) {
+    throw new Error("Study data is incomplete.");
+  }
+  return data;
+}
+
+async function init() {
+  if (replay) {
+    study = await fetchStudy("replay/study.json");
+  } else {
+    try {
+      study = await fetchStudy(api("/api/study", "/study"), {signal: AbortSignal.timeout(4000)});
+      liveReady = true;
+    } catch {
+      study = await fetchStudy("results/risk_study.json");
+    }
+  }
   const metrics = study.metrics;
   const cards = [
     [study.company_count ?? study.sample.length, "companies sampled"],
@@ -440,6 +508,7 @@ async function init() {
   if ([...company.options].some(o => o.text === "AEP")) company.value = "4904";
   if (replay) {
     mode.querySelector('option[value="research"]')?.remove();
+    mode.querySelector('option[value="today"]').textContent = "Today · recorded";
     mode.value = query.get("case") === "today" ? "today" : "demo";
     run.textContent = "Play voice debate";
   }
@@ -448,12 +517,10 @@ async function init() {
   cutoff.addEventListener("change", showCase);
   mode.addEventListener("change", showCase);
   run.addEventListener("click", debate);
-  run.disabled = false;
 }
 
 init().catch(() => {
   status.textContent = replay ? "The recording could not be loaded. Refresh to try again."
-    : publicApi ? "The live model server is unavailable. Use Watch the recording."
-    : "Start the research server and open http://127.0.0.1:8790 to load the study.";
+    : "Company evidence could not be loaded. Refresh to try again.";
 });
 })();
