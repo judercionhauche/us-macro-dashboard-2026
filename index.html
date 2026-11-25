@@ -69,11 +69,16 @@
       <section class="plCard" id="riskDebrief" hidden>
         <h2>Debate analysis</h2>
         <p id="riskDebriefSummary"></p>
+        <h3>How the votes moved</h3>
+        <div class="chart"><canvas id="riskVoteChart" aria-label="Analyst opening estimates, rebuttal votes, final votes, and the separate moderator verdict" role="img"></canvas></div>
+        <section id="riskForecasts" aria-labelledby="riskForecastTitle"></section>
         <section id="riskBenchmark" aria-labelledby="riskBenchmarkTitle"></section>
-        <div id="riskSpeakingTime" aria-label="Speaking time by analyst"></div>
         <p id="outcome"></p>
-        <div class="chart"><canvas id="riskVoteChart" aria-label="Opening estimates and final risk votes" role="img"></canvas></div>
         <div id="riskDisagreements"></div>
+        <details>
+          <summary>Speaking time by analyst</summary>
+          <div id="riskSpeakingTime"></div>
+        </details>
       </section>
       <section class="grid lower">
         <article class="plCard">

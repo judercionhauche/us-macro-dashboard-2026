@@ -940,6 +940,11 @@ input[type="range"] { accent-color: var(--accent); }
 .riskLab progress { width: 100%; accent-color: var(--accent); margin-bottom: 10px; }
 .riskLab #riskDebrief { margin: 16px 0; }
 .riskLab #riskDebrief h3 { margin-bottom: 4px; }
+.riskLab #riskForecasts { margin-block: 24px; }
+.riskLab .riskForecastGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 20px; }
+.riskLab .riskForecastGrid h4 { margin: 0 0 8px; }
+.riskLab .riskForecastGrid figcaption { margin-top: 8px; }
+.riskLab .riskForecastGrid .chart { height: 240px; }
 .riskLab #riskBenchmark { margin: 16px 0; padding-block: 12px; border-block: 1px solid var(--stroke); }
 .riskLab #riskBenchmark h3 { margin-top: 0; }
 .riskLab .riskBenchmarkValues { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; margin: 12px 0; }
