@@ -37,6 +37,8 @@ const benchmarkRequest = fetch("results/risk_benchmark.json", {signal: AbortSign
   .then(response => response.ok ? response.json() : null)
   .catch(() => null);
 let voteChart, audio, controller, paused = false, resumePlayback;
+let forecastCharts = [];
+const forecastMetrics = {operating_cash_flow:"Operating cash flow", revenue:"Revenue"};
 const pct = value => (value * 100).toFixed(1) + "%";
 
 function option(select, value, text = value) {
@@ -132,9 +134,8 @@ function showCase() {
   }
 }
 
-function drawHistory(history, futureStart) {
-  if (chart) chart.destroy();
-  chart = new Chart(el("history"), {
+function historyChart(canvas, history, futureStart) {
+  return new Chart(canvas, {
     type: "line",
     data: {
       labels: history.map(row => row.cutoff),
@@ -161,6 +162,11 @@ function drawHistory(history, futureStart) {
     }] : [],
     options: {responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v => v + "%"}}}}
   });
+}
+
+function drawHistory(history, futureStart) {
+  chart?.destroy();
+  chart = historyChart(el("history"), history, futureStart);
 }
 
 function text(parent, tag, value, className) {
@@ -244,7 +250,7 @@ function display(event, selectedCase) {
     text(conclusion, "strong", "Moderator’s deciding vote · " + D.label + " risk · " + pct(D.p));
     text(conclusion, "p", "Independent specialist average: " + pct(E.p) + ".");
     text(conclusion, "p", D.say);
-    const comparisonLink = text(conclusion, "button", "See human analyst comparison", "btn");
+    const comparisonLink = text(conclusion, "button", "See charts and comparison", "btn");
     comparisonLink.type = "button";
     comparisonLink.addEventListener("click", () => debrief.scrollIntoView({block:"start"}));
     conclusion.hidden = false;
@@ -260,9 +266,102 @@ function display(event, selectedCase) {
     }
     showBenchmark(selectedCase, D.p);
     showDebrief(event.result);
+    showForecasts(selectedCase);
     status.textContent = "Voice debate complete.";
+    debrief.scrollIntoView({block:"start"});
   } else if (event.type === "error") {
     throw new Error(event.error);
+  }
+}
+
+function dollarsInBillions(value) {
+  const match = typeof value === "string" && value.match(/^(-?[\d,.]+(?:e[+-]?\d+)?) (?:(trillion|billion|million|thousand) )?USD$/);
+  if (!match) return null;
+  const units = {trillion:1000, billion:1, million:.001, thousand:.000001};
+  const amount = Number(match[1].replaceAll(",", "")) * (units[match[2]] ?? 1e-9);
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function saveForecastEvidence(run, event) {
+  for (const call of event.tool_calls || []) {
+    if (!Object.hasOwn(forecastMetrics, call.metric)) continue;
+    const {value, evidence_id: evidenceId, plain_meaning: meaning} = call.result;
+    if (call.tool === "get_metric" && call.quarters_back === 0) {
+      const reported = dollarsInBillions(value);
+      if (reported !== null) run.reported.set(call.metric, reported);
+    }
+    if (call.tool !== "forecast" || run.forecasts.get(call.metric)?.series) continue;
+    const series = ["lower_80_range", "median", "upper_80_range"]
+      .map(key => Array.isArray(value?.[key]) ? value[key].map(dollarsInBillions) : []);
+    if (series.every(values => values.length === 4 && values.every(Number.isFinite))) {
+      run.forecasts.set(call.metric, {series, evidenceId, shortfall:value.share_below_half});
+    } else {
+      run.forecasts.set(call.metric, {meaning});
+    }
+  }
+}
+
+function forecastFigure(parent, metric, projection, run) {
+  const name = forecastMetrics[metric];
+  const figure = text(parent, "figure", "");
+  text(figure, "h4", name);
+  const canvas = text(text(figure, "div", "", "chart"), "canvas", "");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", name + " forecast for four quarters with an 80% model range");
+  const [lower, median, upper] = projection.series;
+  const observed = run.reported.get(metric);
+  const labels = ["Q1 ahead", "Q2 ahead", "Q3 ahead", "Q4 ahead"];
+  const withReportedSlot = values => observed === undefined ? values : [null, ...values];
+  const datasets = [
+    {label:"Lower bound", data:withReportedSlot(lower), borderWidth:0, pointRadius:0},
+    {label:"Middle 80% of model forecasts", data:withReportedSlot(upper), borderWidth:0, pointRadius:0,
+      backgroundColor:"rgba(21, 118, 117, .18)", fill:"-1"},
+    {label:"Forecast median", data:withReportedSlot(median), borderColor:"#157675",
+      backgroundColor:"#157675", borderDash:[5, 3], pointRadius:3}
+  ];
+  if (observed !== undefined) {
+    labels.unshift("Latest reported");
+    datasets.push({label:"Reported value", data:[observed, null, null, null, null],
+      borderColor:"#373c64", backgroundColor:"#373c64", pointRadius:5});
+  }
+  forecastCharts.push(new Chart(canvas, {
+    type:"line",
+    data:{labels, datasets},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{filter:item => item.datasetIndex !== 0}}},
+      scales:{y:{title:{display:true, text:run.mode === "research" ? "Scaled USD, billions" : "USD, billions"}}}}
+  }));
+  const numbers = new Intl.NumberFormat("en-US", {maximumFractionDigits:3});
+  const unit = run.mode === "research" ? "scaled USD billions" : "USD billions";
+  text(figure, "figcaption", `Quarter 4 median: ${numbers.format(median[3])} ${unit}. Middle 80%: ${numbers.format(lower[3])} to ${numbers.format(upper[3])}.` +
+    (projection.evidenceId ? ` [${projection.evidenceId}]` : ""), "muted small");
+  if (projection.shortfall) {
+    text(figure, "p", `${projection.shortfall} of modeled paths put the next four quarters’ total cash flow below half the previous four quarters’ total.`, "small");
+  }
+}
+
+function showForecasts(run) {
+  const section = el("riskForecasts");
+  forecastCharts.forEach(chart => chart.destroy());
+  forecastCharts = [];
+  section.replaceChildren();
+  const heading = text(section, "h3", "Forecasts from this debate");
+  heading.id = "riskForecastTitle";
+  const available = [...run.forecasts].filter(([, projection]) => projection.series);
+  const unavailable = [...run.forecasts].filter(([, projection]) => !projection.series);
+  if (!run.forecasts.size) text(section, "p", "The panel did not request a four-quarter forecast.");
+  for (const [metric, projection] of unavailable) {
+    text(section, "p", forecastMetrics[metric] + ": " + projection.meaning);
+  }
+  const grid = text(section, "div", "", "riskForecastGrid");
+  for (const [metric, projection] of available) forecastFigure(grid, metric, projection, run);
+  if (!available.length && visibleHistory.length) {
+    const figure = text(grid, "figure", "");
+    text(figure, "h4", "Financial signals available at the cutoff");
+    const canvas = text(text(figure, "div", "", "chart"), "canvas", "");
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Most recent reported net margin, debt to assets, and operating cash flow margin");
+    forecastCharts.push(historyChart(canvas, visibleHistory.slice(-8)));
   }
 }
 
@@ -304,7 +403,8 @@ function showBenchmark(run, vote) {
     text(benchmarkSection, "p", "The outcome shown here incorporates the audit of the original dividend-cut flag.");
   }
   const details = text(benchmarkSection, "details", "");
-  text(details, "summary", "See the historical ranking comparison");
+  details.open = true;
+  text(details, "summary", "Historical ranking comparison");
   text(details, "p",
     `Across ${benchmark.companies} companies with comparable Fitch grades and ${benchmark.events} observed events, Fitch scored ${benchmark.fitch_auroc.toFixed(3)} and the AI debate scored ${benchmark.debate_auroc.toFixed(3)} on AUROC. These scores measure how well the earlier methods ranked companies by risk. The AI runs used only financial numbers.`);
   const image = text(details, "img", "");
@@ -355,9 +455,14 @@ function showDebrief(result) {
       labels: roles.map(role => role === "moderator" ? "Moderator" : role),
       datasets: [
         {label:"Opening estimate", backgroundColor:"#5e7790",
-         data:roles.map(role => result.round_one[role]?.p * 100 || (role === "moderator" ? null : 0))},
-        {label:"Final vote", backgroundColor:"#0d9488",
-         data:roles.map(role => 100 * (role === "moderator" ? D.p : result.round_two[role].p))}
+         data:roles.map(role => result.round_one[role] ? result.round_one[role].p * 100 : null)},
+        {label:"Rebuttal estimate", backgroundColor:"#9f6a31",
+         data:roles.map(role => result.rebuttals?.[role] ? result.rebuttals[role].p * 100 : null),
+         hidden:!result.rebuttals},
+        {label:"Final specialist vote", backgroundColor:"#157675",
+         data:roles.map(role => result.round_two[role] ? result.round_two[role].p * 100 : null)},
+        {label:"Moderator verdict", backgroundColor:"#373c64",
+         data:roles.map(role => role === "moderator" ? D.p * 100 : null)}
       ]
     },
     options:{responsive:true, maintainAspectRatio:false, scales:{y:{min:0, max:100,
@@ -485,7 +590,8 @@ async function debate() {
   status.textContent = replay ? "Loading the recorded debate…" : "Preparing cutoff-safe evidence…";
   try {
     const selectedCase = {cik:Number(company.value), ticker:company.selectedOptions[0].text,
-      cutoff:cutoff.value, mode:mode.value, benchmark:await benchmarkRequest};
+      cutoff:cutoff.value, mode:mode.value, benchmark:await benchmarkRequest,
+      forecasts:new Map(), reported:new Map()};
     const {cik, cutoff:decisionDate, mode:decisionMode} = selectedCase;
     const response = replay ? await fetch("replay/" + decisionMode + "/events.jsonl", {signal}) : await fetch(api("/api/debate", "/debate"), {
       signal, method:"POST", headers:{"Content-Type":"application/json", ...(publicApi ? {"X-Risk-Access":access} : {"X-Risk-Demo":"local"})},
@@ -506,6 +612,7 @@ async function debate() {
         // in the comparison panel when the dividend flag changed that outcome.
         if (event.type === "narration" && event.title === "What happened next" && auditedCase(selectedCase)?.corrected) continue;
         if (event.type === "turn" || event.type === "narration") {
+          saveForecastEvidence(selectedCase, event);
           await playTurn(event, signal);
           for (const card of stage.children) card.classList.remove("speaking");
           status.textContent = "Preparing the next turn…";
