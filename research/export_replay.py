@@ -6,6 +6,7 @@ from pathlib import Path
 from shutil import copyfile
 
 import pandas as pd
+from research.risk_study import write_study
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,9 +48,12 @@ def export(output, recordings, public_api=None):
     history.append(dict(history[-1], cutoff=start["cutoff"],
                         positive=int(historical_label.iloc[0]["positive"])))
     data = {"sample":sample[sample["cik"]==4904].to_dict("records"),"history":history,
+            "recordings": {mode: {key: events[0][key] for key in ("cutoff", "history")}
+                           for mode, events in traces.items()},
             "company_count":len(sample),"total":len(labels),"positive":int(labels["positive"].sum()),
             "metrics":json.loads((ROOT/"results/preliminary_baselines.json").read_text())}
     (output/"replay/study.json").write_text(json.dumps(data, allow_nan=False))
+    write_study(output / "results/risk_study.json")
     html = (ROOT/"index.html").read_text()
     if public_api:
         from html import escape

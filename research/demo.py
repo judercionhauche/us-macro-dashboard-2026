@@ -26,6 +26,7 @@ from research.demo_voice import audio_clip
 from research.download import CACHE, companyfacts
 from research.llm import Client
 from research.panel import build_quarters
+from research.risk_study import study_payload
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,6 +102,7 @@ class Dashboard(BaseHTTPRequestHandler):
             return
         assets = {"/": ("index.html", "text/html"),
                   "/styles.css": ("styles.css", "text/css"),
+                  "/results/risk_study.json": ("results/risk_study.json", "application/json"),
                   "/results/figures/fig2.png": ("results/figures/fig2.png", "image/png")}
         for script in ("app.js", "lab.js", "voice-debate.js", "risk.js",
                        "marked.min.js", "chart.umd.js"):
@@ -124,18 +126,7 @@ class Dashboard(BaseHTTPRequestHandler):
             except (OSError, ValueError, KeyError):
                 self.payload({"error":"Latest numeric history is unavailable."}, 404)
         elif self.path == "/api/study":
-            sample = pd.read_csv(RESULTS / "sample.csv")
-            panel = pd.read_csv(RESULTS / "panel.csv")
-            labels = pd.read_csv(RESULTS / "labels.csv")
-            columns = ["cik", "cutoff", "net_margin", "debt_assets", "ocf_margin"]
-            panel = panel[columns].merge(labels[["cik", "cutoff", "positive"]],
-                                         on=["cik", "cutoff"], how="left")
-            self.payload({
-                "sample": sample.to_dict("records"),
-                "history": json.loads(panel.to_json(orient="records")),
-                "metrics": json.loads((RESULTS / "preliminary_baselines.json").read_text()),
-                "total": len(labels), "positive": int(labels["positive"].sum()),
-            })
+            self.payload(study_payload())
         else:
             self.send_error(404)
 

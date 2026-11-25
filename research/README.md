@@ -106,6 +106,10 @@ before using it for scored results. The frozen label file stays the same.
 including audio, charts, and tool summaries, as a static site. It does not need
 API credentials or the local demo server. Serve the output under `risk-demo/`
 on GitHub Pages. The Python server remains the entry point for new live runs.
+The export includes a historical study snapshot so visitors can use the company
+and cutoff selectors even when the live service is unavailable. If the
+historical panel changes, regenerate the repository copy with
+`python -m research.risk_study`.
 
 ## Public live deployment
 
